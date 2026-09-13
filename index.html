@@ -167,14 +167,27 @@
         <!-- Área principal -->
         <main id="canvas-wrapper" class="flex-1 bg-gray-200 overflow-auto relative flex items-center justify-center p-4 sm:p-8">
             
+            <!-- Barra Flotante Ajustada a la base de la imagen -->
             <div id="floating-toolbar" class="absolute hidden bg-white rounded-lg shadow-xl border border-gray-200 p-1 flex items-center gap-1 z-50 transition-transform transform hover:scale-105">
                 <button onclick="deleteSelected()" class="w-10 h-10 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 transition" title="Eliminar seleccionado">
                     <i class="fa-solid fa-trash text-lg"></i>
                 </button>
-                <button id="floating-crop-btn" onclick="openEraseModal('crop')" class="w-10 h-10 flex items-center justify-center rounded-md text-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 transition border-l border-gray-200" title="Recortar bordes de la imagen">
+                
+                <div class="w-px h-6 bg-gray-200 mx-1"></div>
+                
+                <button onclick="rotateSelected()" class="w-10 h-10 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition" title="Girar 90°">
+                    <i class="fa-solid fa-rotate-right text-lg"></i>
+                </button>
+                <button onclick="flipSelected()" class="w-10 h-10 flex items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 transition" title="Efecto Espejo (Voltear)">
+                    <i class="fa-solid fa-right-left text-lg"></i>
+                </button>
+                
+                <div id="floating-img-separators" class="w-px h-6 bg-gray-200 mx-1 hidden"></div>
+                
+                <button id="floating-crop-btn" onclick="openEraseModal('crop')" class="w-10 h-10 flex items-center justify-center rounded-md text-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 transition" title="Recortar bordes de la imagen">
                     <i class="fa-solid fa-crop-simple text-lg"></i>
                 </button>
-                <button id="floating-edit-btn" onclick="openEraseModal('magic')" class="w-10 h-10 flex items-center justify-center rounded-md text-blue-500 hover:bg-blue-50 hover:text-blue-600 transition border-l border-gray-200" title="Borrar fondo o Editar imagen">
+                <button id="floating-edit-btn" onclick="openEraseModal('magic')" class="w-10 h-10 flex items-center justify-center rounded-md text-blue-500 hover:bg-blue-50 hover:text-blue-600 transition" title="Borrar fondo o Editar imagen">
                     <i class="fa-solid fa-scissors text-lg"></i>
                 </button>
             </div>
@@ -349,16 +362,20 @@
             const toolbar = document.getElementById('floating-toolbar');
             const cropBtn = document.getElementById('floating-crop-btn');
             const editBtn = document.getElementById('floating-edit-btn');
+            const separators = document.getElementById('floating-img-separators');
             
-            if (activeObject.type === 'image') { cropBtn.style.display = 'flex'; editBtn.style.display = 'flex'; } 
-            else { cropBtn.style.display = 'none'; editBtn.style.display = 'none'; }
+            if (activeObject.type === 'image') { 
+                cropBtn.style.display = 'flex'; editBtn.style.display = 'flex'; separators.style.display = 'block';
+            } else { 
+                cropBtn.style.display = 'none'; editBtn.style.display = 'none'; separators.style.display = 'none';
+            }
 
             const bound = activeObject.getBoundingRect();
             const canvasWrapper = document.getElementById('canvas-wrapper');
             const canvasContainer = document.querySelector('.canvas-container');
             
             const absoluteLeft = canvasContainer.offsetLeft + bound.left + (bound.width / 2) - (toolbar.offsetWidth / 2) - canvasWrapper.scrollLeft;
-            const absoluteTop = canvasContainer.offsetTop + bound.top - 55 - canvasWrapper.scrollTop;
+            const absoluteTop = canvasContainer.offsetTop + bound.top + bound.height + 25 - canvasWrapper.scrollTop;
 
             toolbar.style.left = `${Math.max(10, absoluteLeft)}px`; toolbar.style.top = `${Math.max(10, absoluteTop)}px`;
             toolbar.style.display = 'flex';
@@ -371,6 +388,26 @@
             if (activeObjects.length) {
                 canvas.discardActiveObject(); activeObjects.forEach(obj => canvas.remove(obj));
                 hideFloatingToolbar(); saveHistory();
+            }
+        }
+        
+        function rotateSelected() {
+            const obj = canvas.getActiveObject();
+            if (obj) {
+                let currentAngle = obj.angle || 0;
+                obj.set('angle', currentAngle + 90);
+                canvas.requestRenderAll();
+                saveHistory();
+                updateFloatingToolbarPosition();
+            }
+        }
+
+        function flipSelected() {
+            const obj = canvas.getActiveObject();
+            if (obj) {
+                obj.set('flipX', !obj.flipX);
+                canvas.requestRenderAll();
+                saveHistory();
             }
         }
 
@@ -571,7 +608,7 @@
 
                 img.set({
                     left: currentEraseObject.left + finalX, top: currentEraseObject.top + finalY,
-                    scaleX: currentEraseObject.scaleX, scaleY: currentEraseObject.scaleY, angle: currentEraseObject.angle,
+                    scaleX: currentEraseObject.scaleX, scaleY: currentEraseObject.scaleY, angle: currentEraseObject.angle, flipX: currentEraseObject.flipX,
                     originX: currentEraseObject.originX, originY: currentEraseObject.originY,
                     transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40
                 });
@@ -581,7 +618,6 @@
             });
         }
 
-        // --- BOTONES Y PORTAPAPELES ---
         async function pasteFromClipboard() {
             try {
                 const clipboardItems = await navigator.clipboard.read();
