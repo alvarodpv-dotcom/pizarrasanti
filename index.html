@@ -7,7 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    <script src="https://unpkg.com/@imgly/background-removal@1.4.3/dist/browser/bundle.umd.min.js"></script>
+    
+    <!-- Carga moderna de Inteligencia Artificial garantizada para el navegador -->
+    <script type="module">
+        import imglyRemoveBackground from "https://esm.sh/@imgly/background-removal@1.4.3";
+        window.imglyRemoveBackground = imglyRemoveBackground;
+    </script>
     
     <style>
         body { margin: 0; overflow: hidden; background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
@@ -167,7 +172,6 @@
         <!-- Área principal -->
         <main id="canvas-wrapper" class="flex-1 bg-gray-200 overflow-auto relative flex items-center justify-center p-4 sm:p-8">
             
-            <!-- Barra Flotante Ajustada a la base de la imagen -->
             <div id="floating-toolbar" class="absolute hidden bg-white rounded-lg shadow-xl border border-gray-200 p-1 flex items-center gap-1 z-50 transition-transform transform hover:scale-105">
                 <button onclick="deleteSelected()" class="w-10 h-10 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 transition" title="Eliminar seleccionado">
                     <i class="fa-solid fa-trash text-lg"></i>
@@ -476,14 +480,13 @@
             loader.style.display = 'flex'; 
             
             try {
+                if (typeof window.imglyRemoveBackground !== 'function') {
+                    throw new Error("La Inteligencia Artificial aún se está descargando en el navegador. Inténtalo de nuevo en unos segundos.");
+                }
+
                 const dataUrl = eraseCanvas.toDataURL('image/png');
-                const config = { 
-                    publicPath: "https://unpkg.com/@imgly/background-removal@1.4.3/dist/assets/",
-                    debug: true 
-                };
-                
-                let removeBgFn = typeof imglyRemoveBackground === "function" ? imglyRemoveBackground : imglyRemoveBackground.default;
-                const blob = await removeBgFn(dataUrl, config);
+                // Se usa la IA sin configuración forzada para que use sus servidores CDN estables
+                const blob = await window.imglyRemoveBackground(dataUrl);
                 
                 const url = URL.createObjectURL(blob);
                 const newImg = new Image();
@@ -497,7 +500,7 @@
                 
             } catch (error) {
                 console.error(error);
-                alert("Error detallado: " + (error.message || error));
+                alert("Hubo un error: " + (error.message || "Asegúrate de tener conexión a internet estable."));
                 loader.style.display = 'none';
             }
         }
