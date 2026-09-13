@@ -7,12 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    
-    <!-- Carga moderna de Inteligencia Artificial garantizada para el navegador -->
-    <script type="module">
-        import imglyRemoveBackground from "https://esm.sh/@imgly/background-removal@1.4.3";
-        window.imglyRemoveBackground = imglyRemoveBackground;
-    </script>
+    <!-- Librería estable de IA -->
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.2.1/dist/browser/bundle.umd.min.js"></script>
     
     <style>
         body { margin: 0; overflow: hidden; background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
@@ -172,6 +168,7 @@
         <!-- Área principal -->
         <main id="canvas-wrapper" class="flex-1 bg-gray-200 overflow-auto relative flex items-center justify-center p-4 sm:p-8">
             
+            <!-- Barra Flotante Ajustada a la base de la imagen -->
             <div id="floating-toolbar" class="absolute hidden bg-white rounded-lg shadow-xl border border-gray-200 p-1 flex items-center gap-1 z-50 transition-transform transform hover:scale-105">
                 <button onclick="deleteSelected()" class="w-10 h-10 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 transition" title="Eliminar seleccionado">
                     <i class="fa-solid fa-trash text-lg"></i>
@@ -449,7 +446,8 @@
             
             if(mode === 'crop') eraseCanvas.style.cursor = 'crosshair';
             else eraseCanvas.style.cursor = 'url(https://cdn-icons-png.flaticon.com/32/1888/1888126.png) 0 32, crosshair';
-            redrawEraseCanvas();
+            
+            resetEraseCanvas(); // CORRECCIÓN: Limpia el lienzo al cambiar de modo para borrar fantasmas de recorte
         }
 
         function openEraseModal(initialMode) {
@@ -464,7 +462,7 @@
             eraseCanvas.width = origCanvas.width = w; eraseCanvas.height = origCanvas.height = h;
             origCtx.clearRect(0,0,w,h); origCtx.drawImage(imgElement, 0, 0, w, h);
             
-            resetEraseCanvas(); setEraseMode(initialMode);
+            setEraseMode(initialMode);
             eraseModal.classList.remove('hidden'); eraseModal.classList.add('flex');
         }
 
@@ -480,13 +478,14 @@
             loader.style.display = 'flex'; 
             
             try {
-                if (typeof window.imglyRemoveBackground !== 'function') {
-                    throw new Error("La Inteligencia Artificial aún se está descargando en el navegador. Inténtalo de nuevo en unos segundos.");
-                }
-
                 const dataUrl = eraseCanvas.toDataURL('image/png');
-                // Se usa la IA sin configuración forzada para que use sus servidores CDN estables
-                const blob = await window.imglyRemoveBackground(dataUrl);
+                
+                // CORRECCIÓN IA: Se le pasa la ruta correcta para que descargue sus metadatos sin fallar
+                const config = { 
+                    publicPath: "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.2.1/dist/assets/" 
+                };
+                
+                const blob = await imglyRemoveBackground(dataUrl, config);
                 
                 const url = URL.createObjectURL(blob);
                 const newImg = new Image();
@@ -593,7 +592,8 @@
             let cx = Math.min(cropStart.x, cropEnd.x), cy = Math.min(cropStart.y, cropEnd.y);
             let cw = Math.abs(cropStart.x - cropEnd.x), ch = Math.abs(cropStart.y - cropEnd.y);
             
-            if (cw < 10 || ch < 10) { redrawEraseCanvas(); return; } 
+            // CORRECCIÓN: Si el toque fue muy corto, limpia la pantalla para que no quede la sombra pegada
+            if (cw < 10 || ch < 10) { resetEraseCanvas(); return; } 
             
             let tempCanvas = document.createElement('canvas'); tempCanvas.width = cw; tempCanvas.height = ch;
             tempCanvas.getContext('2d').drawImage(origCanvas, cx, cy, cw, ch, 0, 0, cw, ch);
@@ -617,7 +617,7 @@
                 img.set({
                     left: currentEraseObject.left + finalX, top: currentEraseObject.top + finalY,
                     scaleX: currentEraseObject.scaleX, scaleY: currentEraseObject.scaleY, angle: currentEraseObject.angle, flipX: currentEraseObject.flipX,
-                    originX: currentEraseObject.originX, originY: currentEraseObject.originY,
+                    originX: 'left', originY: 'top', // CORRECCIÓN: Las imágenes ahora calculan su posición desde la esquina, evitando que salten al recortarlas
                     transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40
                 });
                 
@@ -638,7 +638,7 @@
                                 const imgObj = new Image(); imgObj.src = event.target.result;
                                 imgObj.onload = function() {
                                     const img = new fabric.Image(imgObj); if(img.width > 500) img.scaleToWidth(500); 
-                                    img.set({ left: canvas.width/2 - img.getScaledWidth()/2, top: canvas.height/2 - img.getScaledHeight()/2, transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40 });
+                                    img.set({ left: canvas.width/2 - img.getScaledWidth()/2, top: canvas.height/2 - img.getScaledHeight()/2, originX: 'left', originY: 'top', transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40 });
                                     canvas.add(img); setTool('select'); canvas.setActiveObject(img); saveHistory();
                                 }
                             }; reader.readAsDataURL(blob); return;
@@ -654,7 +654,7 @@
             reader.onload = function(f) {
                 fabric.Image.fromURL(f.target.result, function(img) {
                     if (img.width > 400) img.scaleToWidth(400);
-                    img.set({ left: canvas.width/2 - img.getScaledWidth()/2, top: canvas.height/2 - img.getScaledHeight()/2, transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40 });
+                    img.set({ left: canvas.width/2 - img.getScaledWidth()/2, top: canvas.height/2 - img.getScaledHeight()/2, originX: 'left', originY: 'top', transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40 });
                     canvas.add(img); setTool('select'); canvas.setActiveObject(img); saveHistory();
                 });
             }; reader.readAsDataURL(file); event.target.value = ''; 
@@ -682,7 +682,7 @@
                         const imgObj = new Image(); imgObj.src = event.target.result;
                         imgObj.onload = function() {
                             const img = new fabric.Image(imgObj); if(img.width > 500) img.scaleToWidth(500); 
-                            img.set({ left: canvas.width/2 - img.getScaledWidth()/2, top: canvas.height/2 - img.getScaledHeight()/2, transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40 });
+                            img.set({ left: canvas.width/2 - img.getScaledWidth()/2, top: canvas.height/2 - img.getScaledHeight()/2, originX: 'left', originY: 'top', transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40 });
                             canvas.add(img); setTool('select'); canvas.setActiveObject(img); saveHistory();
                         }
                     }; reader.readAsDataURL(items[index].getAsFile());
