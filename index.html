@@ -9,16 +9,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
-        
-        /* Ocultar inputs de archivos */
         input[type="file"] { display: none; }
         
-        /* Estilizar la barra de scroll del contenedor del canvas */
         #canvas-wrapper::-webkit-scrollbar { width: 12px; height: 12px; }
         #canvas-wrapper::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 8px; }
         #canvas-wrapper::-webkit-scrollbar-thumb { background-color: #9ca3af; border-radius: 8px; border: 3px solid #e5e7eb; }
         
-        /* Contenedor del canvas para que parezca una hoja de papel */
         .canvas-container {
             margin: 20px auto;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
@@ -26,14 +22,8 @@
             transition: all 0.3s ease;
         }
 
-        /* Estilos activos para botones de herramientas */
-        .tool-btn.active {
-            background-color: #3b82f6; /* Blue 500 */
-            color: white;
-            border-color: #2563eb;
-        }
+        .tool-btn.active { background-color: #3b82f6; color: white; border-color: #2563eb; }
 
-        /* Lienzo de borrado de imágenes */
         #erase-canvas {
             cursor: crosshair;
             background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
@@ -43,6 +33,10 @@
             max-width: 90vw;
             max-height: 70vh;
         }
+        
+        /* Ocultar barra scroll en botones del modal */
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="flex h-screen flex-col">
@@ -50,7 +44,7 @@
     <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10 shadow-sm overflow-x-auto">
         <div class="flex items-center gap-4">
             <h1 class="font-bold text-lg sm:text-xl text-gray-800 flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-palette text-blue-500"></i> Pizarra Creativa
+                <i class="fa-solid fa-palette text-blue-500"></i> Pizarra
             </h1>
             
             <div class="h-8 w-px bg-gray-300 mx-1 sm:mx-2"></div>
@@ -67,7 +61,7 @@
 
             <div class="h-8 w-px bg-gray-300 mx-1 sm:mx-2"></div>
             
-            <!-- Controles de tamaño del lienzo -->
+            <!-- Controles de tamaño -->
             <div class="hidden md:flex items-center gap-2 text-sm text-gray-600">
                 <label title="Ancho"><i class="fa-solid fa-arrows-left-right"></i></label>
                 <input type="number" id="canvas-width" value="1200" class="w-16 sm:w-20 px-2 py-1 border rounded bg-gray-50 focus:outline-none focus:border-blue-500">
@@ -81,12 +75,12 @@
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3">
-            <button onclick="document.getElementById('load-project-input').click()" class="px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition border border-gray-200 flex items-center gap-2" title="Cargar proyecto anterior">
+            <button onclick="document.getElementById('load-project-input').click()" class="px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition border border-gray-200 flex items-center gap-2">
                 <i class="fa-solid fa-folder-open"></i> <span class="hidden sm:inline">Abrir</span>
             </button>
             <input type="file" id="load-project-input" accept=".json" onchange="loadProject(event)">
             
-            <button onclick="saveProject()" class="px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition border border-gray-200 flex items-center gap-2" title="Guardar proyecto para editar después">
+            <button onclick="saveProject()" class="px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition border border-gray-200 flex items-center gap-2">
                 <i class="fa-solid fa-floppy-disk"></i> <span class="hidden sm:inline">Guardar</span>
             </button>
             
@@ -97,21 +91,26 @@
     </header>
 
     <div class="flex flex-1 overflow-hidden">
-        <aside class="w-16 sm:w-20 bg-white border-r border-gray-200 flex flex-col items-center py-4 sm:py-6 gap-4 sm:gap-6 shrink-0 z-10 shadow-sm overflow-y-auto">
+        <aside class="w-16 sm:w-20 bg-white border-r border-gray-200 flex flex-col items-center py-4 sm:py-6 gap-4 sm:gap-6 shrink-0 z-10 shadow-sm overflow-y-auto hide-scroll">
             
             <!-- Herramientas principales -->
             <div class="flex flex-col gap-2 sm:gap-3 w-full px-2 sm:px-3">
-                <button id="btn-select" onclick="setTool('select')" class="tool-btn active w-full aspect-square rounded-xl flex flex-col items-center justify-center text-gray-600 hover:bg-gray-100 border-2 border-transparent transition" title="Seleccionar y Mover (V)">
+                <button id="btn-select" onclick="setTool('select')" class="tool-btn active w-full aspect-square rounded-xl flex flex-col items-center justify-center text-gray-600 hover:bg-gray-100 border-2 border-transparent transition" title="Mover y Rotar (V)">
                     <i class="fa-solid fa-arrow-pointer text-lg sm:text-xl mb-1"></i>
                     <span class="text-[9px] sm:text-[10px] font-semibold">Mover</span>
                 </button>
 
-                <button id="btn-draw" onclick="setTool('draw')" class="tool-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center text-gray-600 hover:bg-gray-100 border-2 border-transparent transition" title="Dibujar libremente (P)">
+                <button id="btn-draw" onclick="setTool('draw')" class="tool-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center text-gray-600 hover:bg-gray-100 border-2 border-transparent transition" title="Lápiz (P)">
                     <i class="fa-solid fa-pen text-lg sm:text-xl mb-1"></i>
                     <span class="text-[9px] sm:text-[10px] font-semibold">Lápiz</span>
                 </button>
 
-                <button id="btn-eraser" onclick="setTool('eraser')" class="tool-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center text-gray-600 hover:bg-gray-100 border-2 border-transparent transition text-red-500" title="Borrador Mágico: Toca un trazo o sticker para borrarlo (E)">
+                <button id="btn-bucket" onclick="setTool('bucket')" class="tool-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center text-gray-600 hover:bg-gray-100 border-2 border-transparent transition" title="Pintar Fondo: Toca el lienzo para llenarlo de color">
+                    <i class="fa-solid fa-fill-drip text-lg sm:text-xl mb-1"></i>
+                    <span class="text-[9px] sm:text-[10px] font-semibold">Balde</span>
+                </button>
+
+                <button id="btn-eraser" onclick="setTool('eraser')" class="tool-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center text-gray-600 hover:bg-gray-100 border-2 border-transparent transition text-red-500" title="Borrador de Trazos">
                     <i class="fa-solid fa-eraser text-lg sm:text-xl mb-1"></i>
                     <span class="text-[9px] sm:text-[10px] font-semibold">Borrar</span>
                 </button>
@@ -121,7 +120,7 @@
 
             <!-- Opciones de Dibujo -->
             <div id="drawing-options" class="flex flex-col items-center gap-3 w-full opacity-50 pointer-events-none transition-opacity">
-                <input type="color" id="brush-color" value="#000000" class="w-8 h-8 sm:w-10 sm:h-10 rounded cursor-pointer border border-gray-300 p-0" title="Color del lápiz" onchange="updateBrush()">
+                <input type="color" id="brush-color" value="#000000" class="w-8 h-8 sm:w-10 sm:h-10 rounded cursor-pointer border border-gray-300 p-0" title="Color" onchange="updateBrush()">
                 
                 <div class="flex flex-col items-center w-full px-1 sm:px-2">
                     <span id="brush-size-label" class="text-[10px] sm:text-xs text-gray-500 font-bold mb-1">5px</span>
@@ -133,18 +132,13 @@
 
             <!-- Botones de Imágenes -->
             <div class="flex flex-col gap-2 sm:gap-3 w-full px-2 sm:px-3">
-                <button onclick="pasteFromClipboard()" class="w-full aspect-square rounded-xl flex flex-col items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition" title="Pegar imagen del portapapeles">
-                    <i class="fa-solid fa-paste text-lg sm:text-xl mb-1"></i>
-                    <span class="text-[9px] sm:text-[10px] font-semibold text-center leading-tight">Pegar<br>Imagen</span>
-                </button>
-
-                <button onclick="document.getElementById('sticker-upload').click()" class="w-full aspect-square rounded-xl flex flex-col items-center justify-center text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition" title="Añadir imagen flotante">
+                <button onclick="document.getElementById('sticker-upload').click()" class="w-full aspect-square rounded-xl flex flex-col items-center justify-center text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
                     <i class="fa-solid fa-images text-lg sm:text-xl mb-1"></i>
                     <span class="text-[9px] sm:text-[10px] font-semibold text-center leading-tight">Añadir<br>Sticker</span>
                 </button>
                 <input type="file" id="sticker-upload" accept="image/*" onchange="addSticker(event)">
 
-                <button onclick="document.getElementById('bg-upload').click()" class="w-full aspect-square rounded-xl flex flex-col items-center justify-center text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition" title="Establecer imagen de fondo">
+                <button onclick="document.getElementById('bg-upload').click()" class="w-full aspect-square rounded-xl flex flex-col items-center justify-center text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition">
                     <i class="fa-regular fa-image text-lg sm:text-xl mb-1"></i>
                     <span class="text-[9px] sm:text-[10px] font-semibold text-center leading-tight">Fondo<br>Lienzo</span>
                 </button>
@@ -152,108 +146,125 @@
             </div>
             
             <div class="mt-auto w-full px-2 sm:px-3 pb-2">
-                <button onclick="clearCanvas()" class="w-full py-2 rounded-lg flex flex-col items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition" title="Limpiar todo el lienzo">
+                <button onclick="clearCanvas()" class="w-full py-2 rounded-lg flex flex-col items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition">
                     <i class="fa-solid fa-trash-can mb-1"></i>
                     <span class="text-[9px] sm:text-[10px] font-semibold">Vaciar</span>
                 </button>
             </div>
         </aside>
 
-        <!-- Área principal con scroll -->
+        <!-- Área principal -->
         <main id="canvas-wrapper" class="flex-1 bg-gray-200 overflow-auto relative flex items-center justify-center p-4 sm:p-8">
             
             <!-- Barra de herramientas flotante al seleccionar objeto -->
             <div id="floating-toolbar" class="absolute hidden bg-white rounded-lg shadow-xl border border-gray-200 p-1 flex items-center gap-1 z-50 transition-transform transform hover:scale-105">
-                <!-- Botón de Borrar (siempre visible al seleccionar) -->
-                <button onclick="deleteSelected()" class="w-10 h-10 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 transition" title="Eliminar seleccionado (Supr)">
+                <button onclick="deleteSelected()" class="w-10 h-10 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 transition" title="Eliminar seleccionado">
                     <i class="fa-solid fa-trash text-lg"></i>
                 </button>
-                <!-- Botón de Editar Imagen (Solo visible si es imagen) -->
-                <button id="floating-edit-btn" onclick="openEraseModal()" class="w-10 h-10 flex items-center justify-center rounded-md text-blue-500 hover:bg-blue-50 hover:text-blue-600 transition border-l border-gray-200" title="Borrar bordes o fondo a esta imagen">
+                <button id="floating-crop-btn" onclick="openEraseModal('crop')" class="w-10 h-10 flex items-center justify-center rounded-md text-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 transition border-l border-gray-200" title="Recortar bordes de la imagen">
+                    <i class="fa-solid fa-crop-simple text-lg"></i>
+                </button>
+                <button id="floating-edit-btn" onclick="openEraseModal('magic')" class="w-10 h-10 flex items-center justify-center rounded-md text-blue-500 hover:bg-blue-50 hover:text-blue-600 transition border-l border-gray-200" title="Borrar fondo o Editar imagen">
                     <i class="fa-solid fa-scissors text-lg"></i>
                 </button>
             </div>
 
-            <!-- El elemento canvas de Fabric.js -->
             <canvas id="c"></canvas>
             
         </main>
     </div>
 
-    <!-- MODAL: BORRADOR DE IMAGEN -->
-    <div id="erase-modal" class="fixed inset-0 bg-black/80 z-[100] hidden flex-col items-center justify-center">
+    <!-- MODAL: EDITOR DE IMAGEN (Borrado y Recorte) -->
+    <div id="erase-modal" class="fixed inset-0 bg-black/85 z-[100] hidden flex-col items-center justify-center">
         
-        <div class="bg-gray-800 w-full p-4 flex items-center justify-between shadow-lg flex-wrap gap-4">
-            <div class="text-white flex items-center gap-3">
-                <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-700">
-                    <button id="tool-erase-manual" onclick="setEraseMode('manual')" class="px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm font-semibold transition flex items-center gap-2" title="Goma de borrar tradicional">
-                        <i class="fa-solid fa-eraser"></i> Manual
-                    </button>
-                    <button id="tool-erase-magic" onclick="setEraseMode('magic')" class="px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2" title="Varita mágica: Haz clic en un color para borrarlo">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Mágico
-                    </button>
-                </div>
+        <!-- Barra de herramientas del Modal -->
+        <div class="bg-gray-800 w-full p-3 flex flex-col sm:flex-row items-center justify-between shadow-lg gap-3">
+            
+            <!-- Herramientas -->
+            <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-700 overflow-x-auto hide-scroll max-w-full shrink-0">
+                <button id="tool-crop" onclick="setEraseMode('crop')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap" title="Recortar imagen">
+                    <i class="fa-solid fa-crop-simple"></i> Recortar
+                </button>
+                <div class="w-px bg-gray-700 mx-1"></div>
+                <button id="tool-manual" onclick="setEraseMode('manual')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap" title="Goma Clásica">
+                    <i class="fa-solid fa-eraser"></i> Normal
+                </button>
+                <button id="tool-smart" onclick="setEraseMode('smart')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap" title="Goma Inteligente: Solo borra el color que toques primero">
+                    <i class="fa-solid fa-brain"></i> Inteligente
+                </button>
+                <button id="tool-magic" onclick="setEraseMode('magic')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap" title="Varita: Borra un área de color entero">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Varita
+                </button>
+                <div class="w-px bg-gray-700 mx-1"></div>
+                <button id="tool-restore" onclick="setEraseMode('restore')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap text-emerald-400 hover:text-emerald-300" title="Restaurar: Vuelve a pintar lo borrado">
+                    <i class="fa-solid fa-bandage"></i> Restaurar
+                </button>
             </div>
             
-            <div id="erase-manual-options" class="flex items-center gap-4 bg-gray-700 px-4 py-2 rounded-lg border border-gray-600">
-                <label class="text-white text-sm font-semibold">Grosor de Goma:</label>
-                <input type="range" id="erase-brush-size" min="5" max="100" value="30" class="w-32 accent-blue-500">
+            <!-- Opciones Dinámicas -->
+            <div id="erase-options-brush" class="hidden items-center gap-3 bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-600 shrink-0">
+                <label class="text-white text-xs font-semibold">Tamaño:</label>
+                <input type="range" id="erase-brush-size" min="5" max="100" value="30" class="w-20 sm:w-28 accent-blue-500">
             </div>
 
-            <div id="erase-magic-options" class="hidden items-center gap-4 bg-gray-700 px-4 py-2 rounded-lg border border-gray-600">
-                <div class="flex items-center gap-2" title="Si aumentas la tolerancia, atrapará tonos similares.">
-                    <label class="text-white text-sm font-semibold">Tolerancia:</label>
-                    <input type="range" id="erase-magic-tolerance" min="1" max="150" value="30" class="w-24 accent-purple-500">
-                </div>
-                <div class="h-6 w-px bg-gray-500"></div>
-                <div class="flex items-center gap-2" title="Si desmarcas esto, se borrará ese color en TODA la imagen a la vez.">
-                    <input type="checkbox" id="erase-magic-contiguous" checked class="w-4 h-4 accent-purple-500 cursor-pointer">
-                    <label for="erase-magic-contiguous" class="text-white text-sm font-semibold cursor-pointer">Contiguo</label>
+            <div id="erase-options-tolerance" class="hidden items-center gap-3 bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-600 shrink-0">
+                <label class="text-white text-xs font-semibold" title="Fuerza de la goma">Fuerza:</label>
+                <input type="range" id="erase-tolerance" min="1" max="150" value="40" class="w-20 sm:w-28 accent-purple-500">
+                <div id="contig-wrapper" class="flex items-center gap-1 border-l border-gray-500 pl-3">
+                    <input type="checkbox" id="erase-contiguous" checked class="w-4 h-4 accent-purple-500">
+                    <label for="erase-contiguous" class="text-white text-xs font-semibold">Unido</label>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 sm:gap-3">
-                <button onclick="resetEraseCanvas()" class="w-10 h-10 flex items-center justify-center text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition border border-gray-600" title="Restaurar imagen original (Deshacer todo)">
+            <div id="erase-options-crop" class="hidden items-center gap-2 text-yellow-300 text-sm font-bold animate-pulse shrink-0">
+                <i class="fa-solid fa-arrow-pointer"></i> Arrastra para recortar
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="flex items-center gap-2 shrink-0 ml-auto">
+                <button onclick="resetEraseCanvas()" class="w-9 h-9 flex items-center justify-center text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition border border-gray-600" title="Deshacer todos los cambios">
                     <i class="fa-solid fa-rotate-left"></i>
                 </button>
-                <button onclick="closeEraseModal()" class="px-4 py-2 text-white bg-gray-600 hover:bg-gray-500 rounded-lg transition font-medium">
+                <button onclick="closeEraseModal()" class="px-3 py-1.5 text-white bg-gray-600 hover:bg-gray-500 rounded-lg transition font-medium text-sm">
                     Cancelar
                 </button>
-                <button onclick="applyEraser()" class="px-6 py-2 text-white bg-blue-500 hover:bg-blue-600 shadow-lg rounded-lg transition font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-check"></i> Aplicar
+                <button onclick="applyImageEdit()" class="px-4 py-1.5 text-white bg-blue-500 hover:bg-blue-600 shadow-lg rounded-lg transition font-bold flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-check"></i> Listo
                 </button>
             </div>
         </div>
 
-        <div class="flex-1 w-full flex items-center justify-center p-8 overflow-auto">
+        <div class="flex-1 w-full flex items-center justify-center p-4 sm:p-8 overflow-auto relative">
             <canvas id="erase-canvas" class="rounded"></canvas>
+            <canvas id="original-canvas" class="hidden"></canvas> <!-- Guarda la imagen intacta para restaurar -->
         </div>
     </div>
 
     <script>
-        // Inicializar Fabric.js
-        const canvas = new fabric.Canvas('c', {
-            isDrawingMode: false,
-            preserveObjectStacking: true,
-            backgroundColor: '#ffffff'
+        // --- 1. CONFIGURACIÓN INICIAL FABRIC ---
+        fabric.Object.prototype.set({
+            transparentCorners: false, 
+            cornerColor: '#3b82f6', 
+            cornerStrokeColor: '#ffffff',
+            borderColor: '#3b82f6', 
+            cornerSize: 16, 
+            padding: 8,
+            rotatingPointOffset: 40 // Aleja el bastón de rotación para fácil agarre
         });
 
-        // Configurar tamaño inicial dinámico (Tablet/Desktop)
+        const canvas = new fabric.Canvas('c', { isDrawingMode: false, preserveObjectStacking: true, backgroundColor: '#ffffff' });
         const isMobile = window.innerWidth < 1000;
         const initialWidth = isMobile ? window.innerWidth - 90 : document.getElementById('canvas-width').value;
         const initialHeight = isMobile ? window.innerHeight - 90 : document.getElementById('canvas-height').value;
         canvas.setWidth(initialWidth);
         canvas.setHeight(initialHeight);
 
-        // Variables de estado generales
         let currentTool = 'select';
         let clipboard = null; 
-
-        // Configuración inicial del pincel
         canvas.freeDrawingBrush.color = document.getElementById('brush-color').value;
         canvas.freeDrawingBrush.width = parseInt(document.getElementById('brush-size').value, 10);
 
-        // --- SISTEMA DE HISTORIAL (Undo / Redo) ---
+        // --- 2. HISTORIAL ---
         let undoStack = [];
         let redoStack = [];
         let isHistoryTracking = false;
@@ -265,56 +276,36 @@
 
         function saveHistory() {
             if (!isHistoryTracking) return;
-            // Limitar el historial a 40 pasos para no saturar memoria
             if (undoStack.length > 40) undoStack.shift();
             undoStack.push(JSON.stringify(canvas.toJSON()));
-            redoStack = []; // Al hacer un nuevo cambio, se pierde el rehacer futuro
+            redoStack = []; 
             updateUndoRedoUI();
         }
 
         function undo() {
             if (undoStack.length === 0) return;
             isHistoryTracking = false;
-            let currentState = JSON.stringify(canvas.toJSON());
-            redoStack.push(currentState);
-            
-            let previousState = undoStack.pop();
-            canvas.loadFromJSON(previousState, function() {
-                canvas.renderAll();
-                isHistoryTracking = true;
-                updateUndoRedoUI();
-                hideFloatingToolbar();
+            redoStack.push(JSON.stringify(canvas.toJSON()));
+            canvas.loadFromJSON(undoStack.pop(), function() {
+                canvas.renderAll(); isHistoryTracking = true; updateUndoRedoUI(); hideFloatingToolbar();
             });
         }
 
         function redo() {
             if (redoStack.length === 0) return;
             isHistoryTracking = false;
-            let currentState = JSON.stringify(canvas.toJSON());
-            undoStack.push(currentState);
-            
-            let nextState = redoStack.pop();
-            canvas.loadFromJSON(nextState, function() {
-                canvas.renderAll();
-                isHistoryTracking = true;
-                updateUndoRedoUI();
-                hideFloatingToolbar();
+            undoStack.push(JSON.stringify(canvas.toJSON()));
+            canvas.loadFromJSON(redoStack.pop(), function() {
+                canvas.renderAll(); isHistoryTracking = true; updateUndoRedoUI(); hideFloatingToolbar();
             });
         }
 
-        // Guardar el estado inicial (lienzo blanco)
-        setTimeout(() => {
-            isHistoryTracking = true;
-            saveHistory();
-        }, 100);
-
-        // Eventos que disparan el guardado en el historial
+        setTimeout(() => { isHistoryTracking = true; saveHistory(); }, 100);
         canvas.on('object:modified', saveHistory);
         canvas.on('object:added', saveHistory);
         canvas.on('object:removed', saveHistory);
 
-        // --- FUNCIONES DE HERRAMIENTAS PRINCIPALES ---
-
+        // --- 3. HERRAMIENTAS DEL LIENZO ---
         function setTool(tool) {
             currentTool = tool;
             document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
@@ -326,17 +317,16 @@
                 canvas.isDrawingMode = true;
                 drawOptions.classList.remove('opacity-50', 'pointer-events-none');
                 canvas.defaultCursor = 'crosshair';
-                hideFloatingToolbar();
-                canvas.discardActiveObject(); 
-                canvas.requestRenderAll();
+                hideFloatingToolbar(); canvas.discardActiveObject(); canvas.requestRenderAll();
             } else {
                 canvas.isDrawingMode = false;
                 drawOptions.classList.add('opacity-50', 'pointer-events-none');
-                
                 if (tool === 'eraser') {
                     canvas.defaultCursor = 'url(https://cdn-icons-png.flaticon.com/32/1888/1888126.png) 0 32, auto';
-                    hideFloatingToolbar();
-                    canvas.discardActiveObject();
+                    hideFloatingToolbar(); canvas.discardActiveObject();
+                } else if (tool === 'bucket') {
+                    canvas.defaultCursor = 'url(https://cdn-icons-png.flaticon.com/32/3031/3031267.png) 0 32, pointer';
+                    hideFloatingToolbar(); canvas.discardActiveObject();
                 } else {
                     canvas.defaultCursor = 'default';
                 }
@@ -351,28 +341,25 @@
             document.getElementById('brush-size-label').innerText = size + 'px';
         }
 
-        // Lógica del Borrador Mágico de la Pizarra Principal
         canvas.on('mouse:down', function(options) {
             if (currentTool === 'eraser' && options.target) {
                 canvas.remove(options.target); 
                 canvas.discardActiveObject();
-                canvas.requestRenderAll();
+            } else if (currentTool === 'bucket' && !options.target) {
+                const color = document.getElementById('brush-color').value;
+                canvas.setBackgroundColor(color, canvas.renderAll.bind(canvas));
+                saveHistory();
             }
         });
 
-        // --- BARRA DE HERRAMIENTAS FLOTANTE ---
+        // --- 4. BARRA FLOTANTE ---
         canvas.on('selection:created', updateFloatingToolbarPosition);
         canvas.on('selection:updated', updateFloatingToolbarPosition);
         canvas.on('object:moving', hideFloatingToolbar);
         canvas.on('object:scaling', hideFloatingToolbar);
         canvas.on('object:rotating', hideFloatingToolbar);
         canvas.on('selection:cleared', hideFloatingToolbar);
-        
-        canvas.on('mouse:up', function(options) {
-            if (currentTool === 'select' && canvas.getActiveObject()) {
-                updateFloatingToolbarPosition();
-            }
-        });
+        canvas.on('mouse:up', function() { if (currentTool === 'select' && canvas.getActiveObject()) updateFloatingToolbarPosition(); });
 
         function updateFloatingToolbarPosition() {
             if (currentTool !== 'select') return;
@@ -380,12 +367,14 @@
             if (!activeObject) return;
 
             const toolbar = document.getElementById('floating-toolbar');
+            const cropBtn = document.getElementById('floating-crop-btn');
             const editBtn = document.getElementById('floating-edit-btn');
             
-            // Solo mostrar botón de Recortar/Borrar Fondo si es una imagen simple
             if (activeObject.type === 'image') {
+                cropBtn.style.display = 'flex';
                 editBtn.style.display = 'flex';
             } else {
+                cropBtn.style.display = 'none';
                 editBtn.style.display = 'none';
             }
 
@@ -401,75 +390,114 @@
             toolbar.style.display = 'flex';
         }
 
-        function hideFloatingToolbar() {
-            document.getElementById('floating-toolbar').style.display = 'none';
-        }
+        function hideFloatingToolbar() { document.getElementById('floating-toolbar').style.display = 'none'; }
 
         function deleteSelected() {
             const activeObjects = canvas.getActiveObjects();
             if (activeObjects.length) {
                 canvas.discardActiveObject();
-                activeObjects.forEach(function(object) {
-                    canvas.remove(object);
-                });
-                hideFloatingToolbar();
-                saveHistory();
+                activeObjects.forEach(obj => canvas.remove(obj));
+                hideFloatingToolbar(); saveHistory();
             }
         }
 
-        // --- SISTEMA: BORRADOR DE IMAGEN (✂️) ---
+        // --- 5. MODAL: EDITOR DE IMAGEN (Recorte y Borrado) ---
         let eraseModal = document.getElementById('erase-modal');
         let eraseCanvas = document.getElementById('erase-canvas');
-        let eraseCtx = eraseCanvas.getContext('2d');
+        let eraseCtx = eraseCanvas.getContext('2d', { willReadFrequently: true });
+        
+        let origCanvas = document.getElementById('original-canvas');
+        let origCtx = origCanvas.getContext('2d');
+
         let currentEraseObject = null;
-        let isErasing = false;
         let eraseMode = 'manual';
+        let isEditing = false;
+        
+        let smartTargetColor = null;
+        let cropStart = {x: 0, y: 0};
+        let cropEnd = {x: 0, y: 0};
+        let totalCropX = 0; 
+        let totalCropY = 0;
 
         function setEraseMode(mode) {
             eraseMode = mode;
-            document.getElementById('tool-erase-manual').className = mode === 'manual' ? 'px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm font-semibold transition flex items-center gap-2' : 'px-3 py-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md text-sm font-semibold transition flex items-center gap-2';
-            document.getElementById('tool-erase-magic').className = mode === 'magic' ? 'px-3 py-1.5 bg-purple-500 text-white rounded-md text-sm font-semibold transition flex items-center gap-2' : 'px-3 py-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md text-sm font-semibold transition flex items-center gap-2';
+            document.querySelectorAll('.modal-tool').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white', 'bg-emerald-600');
+                btn.classList.add('text-gray-400');
+            });
+            let activeBtn = document.getElementById('tool-' + mode);
+            activeBtn.classList.remove('text-gray-400');
+            if(mode === 'restore') activeBtn.classList.add('bg-emerald-600', 'text-white');
+            else activeBtn.classList.add('bg-blue-500', 'text-white');
             
-            document.getElementById('erase-manual-options').style.display = mode === 'manual' ? 'flex' : 'none';
-            document.getElementById('erase-magic-options').style.display = mode === 'magic' ? 'flex' : 'none';
-            eraseCanvas.style.cursor = mode === 'manual' ? 'crosshair' : 'url(https://cdn-icons-png.flaticon.com/32/287/287661.png) 0 32, pointer';
+            document.getElementById('erase-options-brush').style.display = ['manual', 'smart', 'restore'].includes(mode) ? 'flex' : 'none';
+            document.getElementById('erase-options-tolerance').style.display = ['smart', 'magic'].includes(mode) ? 'flex' : 'none';
+            document.getElementById('contig-wrapper').style.display = (mode === 'magic') ? 'flex' : 'none';
+            document.getElementById('erase-options-crop').style.display = (mode === 'crop') ? 'flex' : 'none';
+            
+            if(mode === 'crop') eraseCanvas.style.cursor = 'crosshair';
+            else if(mode === 'magic') eraseCanvas.style.cursor = 'url(https://cdn-icons-png.flaticon.com/32/287/287661.png) 0 32, pointer';
+            else eraseCanvas.style.cursor = 'url(https://cdn-icons-png.flaticon.com/32/1888/1888126.png) 0 32, crosshair';
+
+            redrawEraseCanvas();
         }
 
-        function openEraseModal() {
+        function openEraseModal(initialMode) {
             const activeObject = canvas.getActiveObject();
             if (!activeObject || activeObject.type !== 'image') return;
             
             currentEraseObject = activeObject;
             hideFloatingToolbar();
+            totalCropX = 0; totalCropY = 0;
             
-            // Extraer la imagen original subyacente
             const imgElement = activeObject.getElement();
+            const w = imgElement.naturalWidth || imgElement.width;
+            const h = imgElement.naturalHeight || imgElement.height;
             
-            // Configurar el canvas temporal con el tamaño exacto de la imagen real
-            eraseCanvas.width = imgElement.naturalWidth || imgElement.width;
-            eraseCanvas.height = imgElement.naturalHeight || imgElement.height;
+            eraseCanvas.width = origCanvas.width = w;
+            eraseCanvas.height = origCanvas.height = h;
             
-            // Dibujar la imagen
-            eraseCtx.globalCompositeOperation = 'source-over';
-            eraseCtx.clearRect(0, 0, eraseCanvas.width, eraseCanvas.height);
-            eraseCtx.drawImage(imgElement, 0, 0, eraseCanvas.width, eraseCanvas.height);
+            origCtx.clearRect(0,0,w,h);
+            origCtx.drawImage(imgElement, 0, 0, w, h);
             
-            setEraseMode('manual');
+            resetEraseCanvas();
+            setEraseMode(initialMode);
             
-            // Mostrar modal
             eraseModal.classList.remove('hidden');
             eraseModal.classList.add('flex');
         }
 
         function resetEraseCanvas() {
-            if(!currentEraseObject) return;
-            const imgElement = currentEraseObject.getElement();
             eraseCtx.globalCompositeOperation = 'source-over';
             eraseCtx.clearRect(0, 0, eraseCanvas.width, eraseCanvas.height);
-            eraseCtx.drawImage(imgElement, 0, 0, eraseCanvas.width, eraseCanvas.height);
+            eraseCtx.drawImage(origCanvas, 0, 0); 
         }
 
-        // Lógica compartida de coordenadas
+        function redrawEraseCanvas() {
+            if(eraseMode === 'crop' && isEditing) {
+                eraseCtx.globalCompositeOperation = 'source-over';
+                eraseCtx.clearRect(0, 0, eraseCanvas.width, eraseCanvas.height);
+                eraseCtx.drawImage(origCanvas, 0, 0); 
+                
+                eraseCtx.fillStyle = "rgba(0, 0, 0, 0.5)";
+                eraseCtx.fillRect(0, 0, eraseCanvas.width, eraseCanvas.height);
+                
+                let x = Math.min(cropStart.x, cropEnd.x);
+                let y = Math.min(cropStart.y, cropEnd.y);
+                let w = Math.abs(cropStart.x - cropEnd.x);
+                let h = Math.abs(cropStart.y - cropEnd.y);
+                
+                eraseCtx.clearRect(x, y, w, h); 
+                eraseCtx.drawImage(origCanvas, x, y, w, h, x, y, w, h); 
+                
+                eraseCtx.strokeStyle = "#3b82f6";
+                eraseCtx.lineWidth = 2;
+                eraseCtx.setLineDash([5, 5]);
+                eraseCtx.strokeRect(x, y, w, h);
+                eraseCtx.setLineDash([]);
+            }
+        }
+
         function handleEraseInteraction(e) {
             e.preventDefault();
             const touch = e.touches ? e.touches[0] : e;
@@ -480,64 +508,112 @@
             const y = (touch.clientY - rect.top) * scaleY;
 
             if (e.type === 'mousedown' || e.type === 'touchstart') {
+                isEditing = true;
                 if (eraseMode === 'magic') {
                     applyMagicWand(Math.floor(x), Math.floor(y));
+                } else if (eraseMode === 'smart') {
+                    const pixel = eraseCtx.getImageData(x, y, 1, 1).data;
+                    if(pixel[3] > 0) smartTargetColor = {r: pixel[0], g: pixel[1], b: pixel[2]};
+                    else smartTargetColor = null;
+                    applySmartBrush(x, y);
+                } else if (eraseMode === 'crop') {
+                    cropStart = {x, y}; cropEnd = {x, y};
                 } else {
-                    isErasing = true;
-                    drawErase(x, y);
+                    applyBrush(x, y, eraseMode);
                 }
-            } else if ((e.type === 'mousemove' || e.type === 'touchmove') && isErasing && eraseMode === 'manual') {
-                drawErase(x, y);
+            } else if ((e.type === 'mousemove' || e.type === 'touchmove') && isEditing) {
+                if (eraseMode === 'manual' || eraseMode === 'restore') {
+                    applyBrush(x, y, eraseMode);
+                } else if (eraseMode === 'smart') {
+                    applySmartBrush(x, y);
+                } else if (eraseMode === 'crop') {
+                    cropEnd = {x, y};
+                    redrawEraseCanvas();
+                }
+            } else if (e.type === 'mouseup' || e.type === 'touchend') {
+                if(isEditing && eraseMode === 'crop') executeCrop();
+                isEditing = false;
             }
         }
 
-        // Eventos unificados
         eraseCanvas.addEventListener('mousedown', handleEraseInteraction);
         eraseCanvas.addEventListener('mousemove', handleEraseInteraction);
-        window.addEventListener('mouseup', () => { isErasing = false; });
-        
+        eraseCanvas.addEventListener('mouseup', handleEraseInteraction);
+        eraseCanvas.addEventListener('mouseout', () => { isEditing = false; });
         eraseCanvas.addEventListener('touchstart', handleEraseInteraction, {passive: false});
         eraseCanvas.addEventListener('touchmove', handleEraseInteraction, {passive: false});
-        window.addEventListener('touchend', () => { isErasing = false; });
+        eraseCanvas.addEventListener('touchend', handleEraseInteraction);
 
-        function drawErase(x, y) {
-            const brushSize = document.getElementById('erase-brush-size').value;
-            eraseCtx.globalCompositeOperation = 'destination-out';
-            eraseCtx.beginPath();
-            eraseCtx.arc(x, y, brushSize, 0, Math.PI * 2);
-            eraseCtx.fill();
+        function applyBrush(x, y, mode) {
+            const size = parseInt(document.getElementById('erase-brush-size').value, 10);
+            if (mode === 'manual') {
+                eraseCtx.globalCompositeOperation = 'destination-out';
+                eraseCtx.beginPath(); eraseCtx.arc(x, y, size, 0, Math.PI * 2); eraseCtx.fill();
+            } else if (mode === 'restore') {
+                eraseCtx.globalCompositeOperation = 'source-over';
+                eraseCtx.save();
+                eraseCtx.beginPath(); eraseCtx.arc(x, y, size, 0, Math.PI * 2); eraseCtx.clip();
+                eraseCtx.drawImage(origCanvas, 0, 0);
+                eraseCtx.restore();
+            }
         }
 
-        // Algoritmo de Varita Mágica Mejorado (Euclidiano + 8-way + Global)
+        function applySmartBrush(x, y) {
+            if (!smartTargetColor) return;
+            const r = parseInt(document.getElementById('erase-brush-size').value, 10);
+            const tol = parseInt(document.getElementById('erase-tolerance').value, 10);
+            
+            const boxX = Math.floor(Math.max(0, x - r));
+            const boxY = Math.floor(Math.max(0, y - r));
+            const boxW = Math.min(eraseCanvas.width - boxX, r * 2);
+            const boxH = Math.min(eraseCanvas.height - boxY, r * 2);
+            if(boxW <= 0 || boxH <= 0) return;
+            
+            const imgData = eraseCtx.getImageData(boxX, boxY, boxW, boxH);
+            const data = imgData.data;
+            
+            for (let j = 0; j < boxH; j++) {
+                for (let i = 0; i < boxW; i++) {
+                    const cx = boxX + i, cy = boxY + j;
+                    const dx = cx - x, dy = cy - y;
+                    
+                    if (dx*dx + dy*dy <= r*r) {
+                        const idx = (j * boxW + i) * 4;
+                        if (data[idx+3] === 0) continue;
+                        
+                        const dist = Math.sqrt(
+                            Math.pow(data[idx] - smartTargetColor.r, 2) +
+                            Math.pow(data[idx+1] - smartTargetColor.g, 2) +
+                            Math.pow(data[idx+2] - smartTargetColor.b, 2)
+                        );
+                        
+                        if (dist <= tol) data[idx+3] = 0; 
+                    }
+                }
+            }
+            eraseCtx.putImageData(imgData, boxX, boxY);
+        }
+
         function applyMagicWand(startX, startY) {
-            const tolerance = parseInt(document.getElementById('erase-magic-tolerance').value, 10);
-            const isContiguous = document.getElementById('erase-magic-contiguous').checked;
+            const tol = parseInt(document.getElementById('erase-tolerance').value, 10);
+            const isContiguous = document.getElementById('erase-contiguous').checked;
             const imgData = eraseCtx.getImageData(0, 0, eraseCanvas.width, eraseCanvas.height);
             const data = imgData.data;
-            const w = imgData.width;
-            const h = imgData.height;
+            const w = imgData.width, h = imgData.height;
 
             const startIdx = (startY * w + startX) * 4;
             const sr = data[startIdx], sg = data[startIdx+1], sb = data[startIdx+2], sa = data[startIdx+3];
-
-            // Evitar procesar si hacemos clic en algo ya transparente
             if (sa === 0) return; 
             
-            // Función de coincidencia de color (Distancia Euclidiana para mayor precisión de sombras)
-            const matchesColor = (r, g, b, a) => {
-                const dist = Math.sqrt(Math.pow(r - sr, 2) + Math.pow(g - sg, 2) + Math.pow(b - sb, 2) + Math.pow(a - sa, 2));
-                return dist <= tolerance;
+            const matchesColor = (r, g, b) => {
+                return Math.sqrt(Math.pow(r-sr,2) + Math.pow(g-sg,2) + Math.pow(b-sb,2)) <= tol;
             };
 
             if (!isContiguous) {
-                // MODO GLOBAL: Borra el color en toda la imagen a la vez (ideal para fondos con recovecos)
                 for (let i = 0; i < data.length; i += 4) {
-                    if (data[i+3] > 0 && matchesColor(data[i], data[i+1], data[i+2], data[i+3])) {
-                        data[i+3] = 0; // Hacer transparente
-                    }
+                    if (data[i+3] > 0 && matchesColor(data[i], data[i+1], data[i+2])) data[i+3] = 0;
                 }
             } else {
-                // MODO CONTIGUO: Flood Fill de 8 direcciones (se cuela mejor en los bordes dentados)
                 const stack = [[startX, startY]];
                 const visited = new Uint8Array(w * h);
                 visited[startY * w + startX] = 1;
@@ -545,21 +621,15 @@
                 while(stack.length > 0) {
                     const [x, y] = stack.pop();
                     const idx = (y * w + x) * 4;
-
-                    if (matchesColor(data[idx], data[idx+1], data[idx+2], data[idx+3])) {
-                        data[idx+3] = 0; // Convertir pixel a transparente
-                        
-                        // Propagar a los 8 vecinos (Diagonales incluidas)
+                    if (matchesColor(data[idx], data[idx+1], data[idx+2])) {
+                        data[idx+3] = 0; 
                         for(let dy = -1; dy <= 1; dy++) {
                             for(let dx = -1; dx <= 1; dx++) {
                                 if(dx === 0 && dy === 0) continue;
                                 const nx = x + dx, ny = y + dy;
                                 if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
                                     const vIdx = ny * w + nx;
-                                    if (visited[vIdx] === 0) {
-                                        stack.push([nx, ny]);
-                                        visited[vIdx] = 1;
-                                    }
+                                    if (visited[vIdx] === 0) { stack.push([nx, ny]); visited[vIdx] = 1; }
                                 }
                             }
                         }
@@ -569,91 +639,108 @@
             eraseCtx.putImageData(imgData, 0, 0);
         }
 
+        function executeCrop() {
+            let cx = Math.min(cropStart.x, cropEnd.x);
+            let cy = Math.min(cropStart.y, cropEnd.y);
+            let cw = Math.abs(cropStart.x - cropEnd.x);
+            let ch = Math.abs(cropStart.y - cropEnd.y);
+            
+            if (cw < 10 || ch < 10) { redrawEraseCanvas(); return; } 
+            
+            let tempCanvas = document.createElement('canvas');
+            tempCanvas.width = cw; tempCanvas.height = ch;
+            tempCanvas.getContext('2d').drawImage(origCanvas, cx, cy, cw, ch, 0, 0, cw, ch);
+            
+            eraseCanvas.width = origCanvas.width = cw;
+            eraseCanvas.height = origCanvas.height = ch;
+            
+            origCtx.clearRect(0,0,cw,ch);
+            origCtx.drawImage(tempCanvas, 0, 0);
+            
+            eraseCtx.clearRect(0,0,cw,ch);
+            eraseCtx.drawImage(tempCanvas, 0, 0);
+            
+            totalCropX += cx;
+            totalCropY += cy;
+        }
+
         function closeEraseModal() {
             eraseModal.classList.add('hidden');
             eraseModal.classList.remove('flex');
             currentEraseObject = null;
         }
 
-        function applyEraser() {
-            // Guardar imagen borrada a base64
+        function applyImageEdit() {
             const dataURL = eraseCanvas.toDataURL('image/png');
             
             fabric.Image.fromURL(dataURL, function(img) {
-                // Copiar la escala, posición y rotación exactas del objeto viejo al nuevo
+                const rad = fabric.util.degreesToRadians(currentEraseObject.angle);
+                const deltaX = totalCropX * currentEraseObject.scaleX;
+                const deltaY = totalCropY * currentEraseObject.scaleY;
+                
+                const finalX = deltaX * Math.cos(rad) - deltaY * Math.sin(rad);
+                const finalY = deltaX * Math.sin(rad) + deltaY * Math.cos(rad);
+
                 img.set({
-                    left: currentEraseObject.left,
-                    top: currentEraseObject.top,
+                    left: currentEraseObject.left + finalX,
+                    top: currentEraseObject.top + finalY,
                     scaleX: currentEraseObject.scaleX,
                     scaleY: currentEraseObject.scaleY,
                     angle: currentEraseObject.angle,
                     originX: currentEraseObject.originX,
                     originY: currentEraseObject.originY,
-                    transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6'
+                    transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40
                 });
                 
-                isHistoryTracking = false; // Pausar para que sea un solo paso en historial
+                isHistoryTracking = false;
                 canvas.remove(currentEraseObject);
                 canvas.add(img);
                 canvas.setActiveObject(img);
                 canvas.requestRenderAll();
                 isHistoryTracking = true;
-                saveHistory(); // Guardar el reemplazo como una sola acción
+                saveHistory(); 
                 
                 closeEraseModal();
             });
         }
 
-        // --- SUBIDA DE IMÁGENES AL LIENZO ---
+        // --- 6. SUBIDA DE IMÁGENES & PORTAPAPELES ---
         function addSticker(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(f) {
-                const data = f.target.result;
-                fabric.Image.fromURL(data, function(img) {
+                fabric.Image.fromURL(f.target.result, function(img) {
                     if (img.width > 400) img.scaleToWidth(400);
                     img.set({
                         left: canvas.width / 2 - (img.getScaledWidth() / 2),
                         top: canvas.height / 2 - (img.getScaledHeight() / 2),
-                        transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6',
-                        cornerSize: 12, padding: 10
+                        transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40
                     });
                     canvas.add(img);
-                    setTool('select'); 
-                    canvas.setActiveObject(img);
+                    setTool('select'); canvas.setActiveObject(img); saveHistory();
                 });
             };
-            reader.readAsDataURL(file);
-            event.target.value = ''; 
+            reader.readAsDataURL(file); event.target.value = ''; 
         }
 
         function setBackground(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(f) {
-                const data = f.target.result;
-                fabric.Image.fromURL(data, function(img) {
+                fabric.Image.fromURL(f.target.result, function(img) {
                     const canvasAspect = canvas.width / canvas.height;
                     const imgAspect = img.width / img.height;
                     let scaleFactor = (canvasAspect >= imgAspect) ? (canvas.width / img.width) : (canvas.height / img.height);
-
-                    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
-                        scaleX: scaleFactor, scaleY: scaleFactor,
-                        originX: 'center', originY: 'center',
-                        left: canvas.width / 2, top: canvas.height / 2
-                    });
+                    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { scaleX: scaleFactor, scaleY: scaleFactor, originX: 'center', originY: 'center', left: canvas.width / 2, top: canvas.height / 2 });
                     saveHistory();
                 });
             };
-            reader.readAsDataURL(file);
-            event.target.value = '';
+            reader.readAsDataURL(file); event.target.value = '';
         }
 
-        // Pegar imágenes directamente desde el portapapeles (Copy/Paste mágico)
+        // Evento para escuchar Ctrl+V de imágenes externas
         document.addEventListener('paste', function(e) {
             if (e.target.tagName === 'INPUT') return;
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
@@ -670,11 +757,12 @@
                             if(img.width > 500) img.scaleToWidth(500); 
                             img.set({
                                 left: canvas.width / 2 - (img.getScaledWidth() / 2), top: canvas.height / 2 - (img.getScaledHeight() / 2),
-                                transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6'
+                                transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40
                             });
                             canvas.add(img);
                             setTool('select');
                             canvas.setActiveObject(img);
+                            saveHistory();
                         }
                     };
                     reader.readAsDataURL(blob);
@@ -682,72 +770,18 @@
             }
         });
 
-        // Función para el botón de pegar del panel lateral
-        async function pasteFromClipboard() {
-            try {
-                const clipboardItems = await navigator.clipboard.read();
-                for (const clipboardItem of clipboardItems) {
-                    for (const type of clipboardItem.types) {
-                        if (type.startsWith('image/')) {
-                            const blob = await clipboardItem.getType(type);
-                            const reader = new FileReader();
-                            reader.onload = function(event) {
-                                const imgObj = new Image();
-                                imgObj.src = event.target.result;
-                                imgObj.onload = function() {
-                                    const img = new fabric.Image(imgObj);
-                                    if(img.width > 500) img.scaleToWidth(500); 
-                                    img.set({
-                                        left: canvas.width / 2 - (img.getScaledWidth() / 2), top: canvas.height / 2 - (img.getScaledHeight() / 2),
-                                        transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6'
-                                    });
-                                    canvas.add(img);
-                                    setTool('select');
-                                    canvas.setActiveObject(img);
-                                }
-                            };
-                            reader.readAsDataURL(blob);
-                            return; // Terminamos si encontramos una imagen
-                        }
-                    }
-                }
-            } catch (err) {
-                console.warn('El navegador bloqueó la lectura o no hay imagen. Intenta usar Ctrl+V.', err);
-            }
-        }
-
-        // Atajos de Teclado Universales
+        // --- 7. SISTEMAS FINALES ---
         document.addEventListener('keydown', function(e) {
             if (e.target.tagName === 'INPUT' || !document.getElementById('erase-modal').classList.contains('hidden')) return;
-
-            // Deshacer (Ctrl+Z)
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-                e.preventDefault();
-                if (e.shiftKey) { redo(); } else { undo(); }
-                return;
-            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+            if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
             
-            // Rehacer (Ctrl+Y)
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-                e.preventDefault();
-                redo();
-                return;
-            }
-
-            // Suprimir / Borrar
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                deleteSelected();
-            }
-            
-            // Copiar
+            // Pegado interno (Objetos de Fabric copiados con Ctrl+C)
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
                 const activeObject = canvas.getActiveObject();
-                if (activeObject) {
-                    activeObject.clone(function(cloned) { clipboard = cloned; });
-                }
+                if (activeObject) { activeObject.clone(function(cloned) { clipboard = cloned; }); }
             }
-
-            // Pegar interno
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                 if (clipboard) {
                     clipboard.clone(function(clonedObj) {
@@ -761,72 +795,53 @@
                             canvas.add(clonedObj);
                         }
                         clipboard.top += 20; clipboard.left += 20;
-                        setTool('select');
-                        canvas.setActiveObject(clonedObj);
-                        canvas.requestRenderAll();
+                        setTool('select'); canvas.setActiveObject(clonedObj); canvas.requestRenderAll(); saveHistory();
                     });
                 }
             }
 
-            // Herramientas rápido
             if (e.key.toLowerCase() === 'v') setTool('select');
             if (e.key.toLowerCase() === 'p') setTool('draw');
-            if (e.key.toLowerCase() === 'e') setTool('eraser');
+            if (e.key.toLowerCase() === 'b') setTool('bucket');
         });
 
-        // --- SISTEMAS FINALES (Lienzo, Exportar) ---
         function resizeCanvas() {
             const w = parseInt(document.getElementById('canvas-width').value, 10);
             const h = parseInt(document.getElementById('canvas-height').value, 10);
             if (w > 0 && h > 0) {
                 isHistoryTracking = false;
-                canvas.setWidth(w);
-                canvas.setHeight(h);
+                canvas.setWidth(w); canvas.setHeight(h);
                 if (canvas.backgroundImage) {
                     const img = canvas.backgroundImage;
-                    const canvasAspect = w / h;
-                    const imgAspect = img.width / img.height;
+                    const canvasAspect = w / h, imgAspect = img.width / img.height;
                     let scaleFactor = (canvasAspect >= imgAspect) ? w / img.width : h / img.height;
                     img.set({ scaleX: scaleFactor, scaleY: scaleFactor, left: w / 2, top: h / 2 });
                 }
-                canvas.renderAll();
-                hideFloatingToolbar();
-                isHistoryTracking = true;
-                saveHistory();
+                canvas.renderAll(); hideFloatingToolbar(); isHistoryTracking = true; saveHistory();
             }
         }
 
         function clearCanvas() {
             if(confirm('¿Estás seguro de que quieres borrar toda la pizarra?')) {
-                canvas.clear();
-                canvas.setBackgroundColor('#ffffff', canvas.renderAll.bind(canvas));
-                hideFloatingToolbar();
-                saveHistory();
+                canvas.clear(); canvas.setBackgroundColor('#ffffff', canvas.renderAll.bind(canvas));
+                hideFloatingToolbar(); saveHistory();
             }
         }
 
         function exportImage() {
-            canvas.discardActiveObject();
-            canvas.renderAll();
-            hideFloatingToolbar();
+            canvas.discardActiveObject(); canvas.renderAll(); hideFloatingToolbar();
             const link = document.createElement('a');
             link.download = 'Mi-Pizarra.png';
             link.href = canvas.toDataURL({ format: 'png', quality: 1.0 });
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         function saveProject() {
-            const json = JSON.stringify(canvas.toJSON());
-            const blob = new Blob([json], { type: "application/json" });
+            const blob = new Blob([JSON.stringify(canvas.toJSON())], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.download = 'Proyecto-Pizarra.json';
-            link.href = url;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            link.download = 'Proyecto-Pizarra.json'; link.href = url;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         function loadProject(event) {
@@ -836,21 +851,11 @@
             reader.onload = function(f) {
                 isHistoryTracking = false;
                 canvas.loadFromJSON(f.target.result, function() {
-                    canvas.renderAll();
-                    isHistoryTracking = true;
-                    // Limpiar historial al cargar proyecto nuevo
-                    undoStack = []; redoStack = []; saveHistory();
+                    canvas.renderAll(); isHistoryTracking = true; undoStack = []; redoStack = []; saveHistory();
                 });
             };
-            reader.readAsText(file);
-            event.target.value = ''; 
+            reader.readAsText(file); event.target.value = ''; 
         }
-
-        // Estilos genéricos para la selección
-        fabric.Object.prototype.set({
-            transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff',
-            borderColor: '#3b82f6', cornerSize: 12, padding: 5
-        });
         updateUndoRedoUI();
     </script>
 </body>
