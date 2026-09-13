@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    <!-- Librería de Inteligencia Artificial para borrar fondos -->
     <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.2.1/dist/browser/bundle.umd.min.js"></script>
     
     <style>
@@ -40,7 +39,6 @@
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Estilos para la pantalla de carga de la IA */
         #ai-loading {
             position: absolute; inset: 0; background: rgba(0,0,0,0.85);
             display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -63,7 +61,6 @@
             
             <div class="h-8 w-px bg-gray-300 mx-1 sm:mx-2"></div>
             
-            <!-- Controles Deshacer/Rehacer -->
             <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-lg border border-gray-200">
                 <button id="btn-undo" onclick="undo()" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded transition disabled:opacity-30 disabled:cursor-not-allowed" title="Deshacer (Ctrl+Z)">
                     <i class="fa-solid fa-rotate-left"></i>
@@ -75,7 +72,6 @@
 
             <div class="h-8 w-px bg-gray-300 mx-1 sm:mx-2"></div>
             
-            <!-- Controles de tamaño -->
             <div class="hidden md:flex items-center gap-2 text-sm text-gray-600">
                 <label title="Ancho"><i class="fa-solid fa-arrows-left-right"></i></label>
                 <input type="number" id="canvas-width" value="1200" class="w-16 sm:w-20 px-2 py-1 border rounded bg-gray-50 focus:outline-none focus:border-blue-500">
@@ -142,6 +138,11 @@
             <div class="w-10 sm:w-12 h-px bg-gray-200"></div>
 
             <div class="flex flex-col gap-2 sm:gap-3 w-full px-2 sm:px-3">
+                <button onclick="pasteFromClipboard()" class="w-full aspect-square rounded-xl flex flex-col items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition" title="Pegar imagen copiada">
+                    <i class="fa-solid fa-paste text-lg sm:text-xl mb-1"></i>
+                    <span class="text-[9px] sm:text-[10px] font-semibold text-center leading-tight">Pegar<br>Imagen</span>
+                </button>
+
                 <button onclick="document.getElementById('sticker-upload').click()" class="w-full aspect-square rounded-xl flex flex-col items-center justify-center text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
                     <i class="fa-solid fa-images text-lg sm:text-xl mb-1"></i>
                     <span class="text-[9px] sm:text-[10px] font-semibold text-center leading-tight">Añadir<br>Sticker</span>
@@ -186,7 +187,6 @@
     <!-- MODAL: EDITOR DE IMAGEN -->
     <div id="erase-modal" class="fixed inset-0 bg-black/85 z-[100] hidden flex-col items-center justify-center">
         
-        <!-- PANTALLA DE CARGA IA -->
         <div id="ai-loading">
             <div class="spinner"></div>
             <p class="font-bold text-xl mb-2 text-purple-300"><i class="fa-solid fa-wand-magic-sparkles"></i> La IA está trabajando...</p>
@@ -195,7 +195,6 @@
 
         <div class="bg-gray-800 w-full p-3 flex flex-col sm:flex-row items-center justify-between shadow-lg gap-3 relative z-10">
             
-            <!-- Herramientas -->
             <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-700 overflow-x-auto hide-scroll max-w-full shrink-0">
                 <button id="tool-crop" onclick="setEraseMode('crop')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-crop-simple"></i> Recortar
@@ -208,7 +207,6 @@
                     <i class="fa-solid fa-brain"></i> Inteligente
                 </button>
                 <div class="w-px bg-gray-700 mx-1"></div>
-                <!-- BOTÓN IA NUEVO -->
                 <button id="tool-ai" onclick="applyAI()" class="px-3 py-1.5 text-purple-400 hover:text-white hover:bg-purple-600 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap border border-purple-500 bg-purple-900/30" title="Magia IA: Quita el fondo automáticamente con Inteligencia Artificial">
                     <i class="fa-solid fa-robot"></i> Magia IA
                 </button>
@@ -218,7 +216,6 @@
                 </button>
             </div>
             
-            <!-- Opciones Dinámicas -->
             <div id="erase-options-brush" class="hidden items-center gap-3 bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-600 shrink-0">
                 <label class="text-white text-xs font-semibold">Tamaño:</label>
                 <input type="range" id="erase-brush-size" min="5" max="100" value="30" class="w-20 sm:w-28 accent-blue-500">
@@ -231,7 +228,6 @@
                 <i class="fa-solid fa-arrow-pointer"></i> Arrastra para recortar
             </div>
 
-            <!-- Botones de Acción -->
             <div class="flex items-center gap-2 shrink-0 ml-auto">
                 <button onclick="resetEraseCanvas()" class="w-9 h-9 flex items-center justify-center text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition border border-gray-600" title="Deshacer todos los cambios">
                     <i class="fa-solid fa-rotate-left"></i>
@@ -378,7 +374,6 @@
             }
         }
 
-        // --- MODAL: EDITOR DE IMAGEN ---
         let eraseModal = document.getElementById('erase-modal');
         let eraseCanvas = document.getElementById('erase-canvas');
         let eraseCtx = eraseCanvas.getContext('2d', { willReadFrequently: true });
@@ -438,31 +433,23 @@
             eraseCtx.drawImage(origCanvas, 0, 0); 
         }
 
-        // --- LÓGICA DE INTELIGENCIA ARTIFICIAL ---
         async function applyAI() {
             if(!currentEraseObject) return;
             const loader = document.getElementById('ai-loading');
-            loader.style.display = 'flex'; // Mostrar pantalla de carga
+            loader.style.display = 'flex'; 
             
             try {
-                // Obtenemos la imagen actual que Santi esté editando en el modal
                 const dataUrl = eraseCanvas.toDataURL('image/png');
-                
-                // Configurar el modelo de IA desde la nube pública
                 const config = { publicPath: "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.2.1/dist/assets/" };
-                
-                // Ejecutar el recorte automático
                 const blob = await imglyRemoveBackground(dataUrl, config);
                 
-                // Pintar el resultado de la IA sobre el lienzo
                 const url = URL.createObjectURL(blob);
                 const newImg = new Image();
                 newImg.onload = () => {
-                    // Actualizamos tanto la original como la de dibujo para que pueda seguir borrando detalles si quiere
                     origCtx.clearRect(0, 0, origCanvas.width, origCanvas.height);
                     origCtx.drawImage(newImg, 0, 0);
                     resetEraseCanvas(); 
-                    loader.style.display = 'none'; // Ocultar carga
+                    loader.style.display = 'none'; 
                 };
                 newImg.src = url;
                 
@@ -594,7 +581,29 @@
             });
         }
 
-        // --- SUBIDA DE IMÁGENES & PORTAPAPELES ---
+        // --- BOTONES Y PORTAPAPELES ---
+        async function pasteFromClipboard() {
+            try {
+                const clipboardItems = await navigator.clipboard.read();
+                for (const clipboardItem of clipboardItems) {
+                    for (const type of clipboardItem.types) {
+                        if (type.startsWith('image/')) {
+                            const blob = await clipboardItem.getType(type);
+                            const reader = new FileReader();
+                            reader.onload = function(event) {
+                                const imgObj = new Image(); imgObj.src = event.target.result;
+                                imgObj.onload = function() {
+                                    const img = new fabric.Image(imgObj); if(img.width > 500) img.scaleToWidth(500); 
+                                    img.set({ left: canvas.width/2 - img.getScaledWidth()/2, top: canvas.height/2 - img.getScaledHeight()/2, transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40 });
+                                    canvas.add(img); setTool('select'); canvas.setActiveObject(img); saveHistory();
+                                }
+                            }; reader.readAsDataURL(blob); return;
+                        }
+                    }
+                }
+            } catch (err) { console.warn('Bloqueado o no hay imagen. Intenta usar Ctrl+V.', err); }
+        }
+
         function addSticker(event) {
             const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -637,7 +646,6 @@
             }
         });
 
-        // --- SISTEMAS FINALES ---
         document.addEventListener('keydown', function(e) {
             if (e.target.tagName === 'INPUT' || !document.getElementById('erase-modal').classList.contains('hidden')) return;
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
