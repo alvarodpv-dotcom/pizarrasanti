@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <!-- Librería de Inteligencia Artificial para borrar fondos -->
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.2.1/dist/browser/bundle.umd.min.js"></script>
+    
     <style>
         body { margin: 0; overflow: hidden; background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
         input[type="file"] { display: none; }
@@ -34,9 +37,20 @@
             max-height: 70vh;
         }
         
-        /* Ocultar barra scroll en botones del modal */
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Estilos para la pantalla de carga de la IA */
+        #ai-loading {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.85);
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            color: white; z-index: 200; backdrop-filter: blur(4px);
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid #8b5cf6; border-top-color: transparent;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="flex h-screen flex-col">
@@ -93,7 +107,6 @@
     <div class="flex flex-1 overflow-hidden">
         <aside class="w-16 sm:w-20 bg-white border-r border-gray-200 flex flex-col items-center py-4 sm:py-6 gap-4 sm:gap-6 shrink-0 z-10 shadow-sm overflow-y-auto hide-scroll">
             
-            <!-- Herramientas principales -->
             <div class="flex flex-col gap-2 sm:gap-3 w-full px-2 sm:px-3">
                 <button id="btn-select" onclick="setTool('select')" class="tool-btn active w-full aspect-square rounded-xl flex flex-col items-center justify-center text-gray-600 hover:bg-gray-100 border-2 border-transparent transition" title="Mover y Rotar (V)">
                     <i class="fa-solid fa-arrow-pointer text-lg sm:text-xl mb-1"></i>
@@ -118,10 +131,8 @@
 
             <div class="w-10 sm:w-12 h-px bg-gray-200"></div>
 
-            <!-- Opciones de Dibujo -->
             <div id="drawing-options" class="flex flex-col items-center gap-3 w-full opacity-50 pointer-events-none transition-opacity">
                 <input type="color" id="brush-color" value="#000000" class="w-8 h-8 sm:w-10 sm:h-10 rounded cursor-pointer border border-gray-300 p-0" title="Color" onchange="updateBrush()">
-                
                 <div class="flex flex-col items-center w-full px-1 sm:px-2">
                     <span id="brush-size-label" class="text-[10px] sm:text-xs text-gray-500 font-bold mb-1">5px</span>
                     <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full accent-blue-500" oninput="updateBrush()">
@@ -130,7 +141,6 @@
 
             <div class="w-10 sm:w-12 h-px bg-gray-200"></div>
 
-            <!-- Botones de Imágenes -->
             <div class="flex flex-col gap-2 sm:gap-3 w-full px-2 sm:px-3">
                 <button onclick="document.getElementById('sticker-upload').click()" class="w-full aspect-square rounded-xl flex flex-col items-center justify-center text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
                     <i class="fa-solid fa-images text-lg sm:text-xl mb-1"></i>
@@ -156,7 +166,6 @@
         <!-- Área principal -->
         <main id="canvas-wrapper" class="flex-1 bg-gray-200 overflow-auto relative flex items-center justify-center p-4 sm:p-8">
             
-            <!-- Barra de herramientas flotante al seleccionar objeto -->
             <div id="floating-toolbar" class="absolute hidden bg-white rounded-lg shadow-xl border border-gray-200 p-1 flex items-center gap-1 z-50 transition-transform transform hover:scale-105">
                 <button onclick="deleteSelected()" class="w-10 h-10 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 transition" title="Eliminar seleccionado">
                     <i class="fa-solid fa-trash text-lg"></i>
@@ -174,29 +183,37 @@
         </main>
     </div>
 
-    <!-- MODAL: EDITOR DE IMAGEN (Borrado y Recorte) -->
+    <!-- MODAL: EDITOR DE IMAGEN -->
     <div id="erase-modal" class="fixed inset-0 bg-black/85 z-[100] hidden flex-col items-center justify-center">
         
-        <!-- Barra de herramientas del Modal -->
-        <div class="bg-gray-800 w-full p-3 flex flex-col sm:flex-row items-center justify-between shadow-lg gap-3">
+        <!-- PANTALLA DE CARGA IA -->
+        <div id="ai-loading">
+            <div class="spinner"></div>
+            <p class="font-bold text-xl mb-2 text-purple-300"><i class="fa-solid fa-wand-magic-sparkles"></i> La IA está trabajando...</p>
+            <p class="text-sm text-gray-300 text-center px-6 max-w-md">La primera vez puede tardar unos 15 segundos mientras se descarga la inteligencia artificial. Luego será mucho más rápido.</p>
+        </div>
+
+        <div class="bg-gray-800 w-full p-3 flex flex-col sm:flex-row items-center justify-between shadow-lg gap-3 relative z-10">
             
             <!-- Herramientas -->
             <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-700 overflow-x-auto hide-scroll max-w-full shrink-0">
-                <button id="tool-crop" onclick="setEraseMode('crop')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap" title="Recortar imagen">
+                <button id="tool-crop" onclick="setEraseMode('crop')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-crop-simple"></i> Recortar
                 </button>
                 <div class="w-px bg-gray-700 mx-1"></div>
-                <button id="tool-manual" onclick="setEraseMode('manual')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap" title="Goma Clásica">
+                <button id="tool-manual" onclick="setEraseMode('manual')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-eraser"></i> Normal
                 </button>
-                <button id="tool-smart" onclick="setEraseMode('smart')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap" title="Goma Inteligente: Solo borra el color que toques primero">
+                <button id="tool-smart" onclick="setEraseMode('smart')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-brain"></i> Inteligente
                 </button>
-                <button id="tool-magic" onclick="setEraseMode('magic')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap" title="Varita: Borra un área de color entero">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> Varita
+                <div class="w-px bg-gray-700 mx-1"></div>
+                <!-- BOTÓN IA NUEVO -->
+                <button id="tool-ai" onclick="applyAI()" class="px-3 py-1.5 text-purple-400 hover:text-white hover:bg-purple-600 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap border border-purple-500 bg-purple-900/30" title="Magia IA: Quita el fondo automáticamente con Inteligencia Artificial">
+                    <i class="fa-solid fa-robot"></i> Magia IA
                 </button>
                 <div class="w-px bg-gray-700 mx-1"></div>
-                <button id="tool-restore" onclick="setEraseMode('restore')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap text-emerald-400 hover:text-emerald-300" title="Restaurar: Vuelve a pintar lo borrado">
+                <button id="tool-restore" onclick="setEraseMode('restore')" class="modal-tool px-3 py-1.5 text-gray-400 hover:text-white rounded-md text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap text-emerald-400 hover:text-emerald-300">
                     <i class="fa-solid fa-bandage"></i> Restaurar
                 </button>
             </div>
@@ -206,16 +223,10 @@
                 <label class="text-white text-xs font-semibold">Tamaño:</label>
                 <input type="range" id="erase-brush-size" min="5" max="100" value="30" class="w-20 sm:w-28 accent-blue-500">
             </div>
-
             <div id="erase-options-tolerance" class="hidden items-center gap-3 bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-600 shrink-0">
-                <label class="text-white text-xs font-semibold" title="Fuerza de la goma">Fuerza:</label>
+                <label class="text-white text-xs font-semibold">Fuerza:</label>
                 <input type="range" id="erase-tolerance" min="1" max="150" value="40" class="w-20 sm:w-28 accent-purple-500">
-                <div id="contig-wrapper" class="flex items-center gap-1 border-l border-gray-500 pl-3">
-                    <input type="checkbox" id="erase-contiguous" checked class="w-4 h-4 accent-purple-500">
-                    <label for="erase-contiguous" class="text-white text-xs font-semibold">Unido</label>
-                </div>
             </div>
-
             <div id="erase-options-crop" class="hidden items-center gap-2 text-yellow-300 text-sm font-bold animate-pulse shrink-0">
                 <i class="fa-solid fa-arrow-pointer"></i> Arrastra para recortar
             </div>
@@ -236,20 +247,14 @@
 
         <div class="flex-1 w-full flex items-center justify-center p-4 sm:p-8 overflow-auto relative">
             <canvas id="erase-canvas" class="rounded"></canvas>
-            <canvas id="original-canvas" class="hidden"></canvas> <!-- Guarda la imagen intacta para restaurar -->
+            <canvas id="original-canvas" class="hidden"></canvas> 
         </div>
     </div>
 
     <script>
-        // --- 1. CONFIGURACIÓN INICIAL FABRIC ---
         fabric.Object.prototype.set({
-            transparentCorners: false, 
-            cornerColor: '#3b82f6', 
-            cornerStrokeColor: '#ffffff',
-            borderColor: '#3b82f6', 
-            cornerSize: 16, 
-            padding: 8,
-            rotatingPointOffset: 40 // Aleja el bastón de rotación para fácil agarre
+            transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff',
+            borderColor: '#3b82f6', cornerSize: 16, padding: 8, rotatingPointOffset: 40 
         });
 
         const canvas = new fabric.Canvas('c', { isDrawingMode: false, preserveObjectStacking: true, backgroundColor: '#ffffff' });
@@ -264,10 +269,7 @@
         canvas.freeDrawingBrush.color = document.getElementById('brush-color').value;
         canvas.freeDrawingBrush.width = parseInt(document.getElementById('brush-size').value, 10);
 
-        // --- 2. HISTORIAL ---
-        let undoStack = [];
-        let redoStack = [];
-        let isHistoryTracking = false;
+        let undoStack = []; let redoStack = []; let isHistoryTracking = false;
 
         function updateUndoRedoUI() {
             document.getElementById('btn-undo').disabled = undoStack.length === 0;
@@ -278,34 +280,26 @@
             if (!isHistoryTracking) return;
             if (undoStack.length > 40) undoStack.shift();
             undoStack.push(JSON.stringify(canvas.toJSON()));
-            redoStack = []; 
-            updateUndoRedoUI();
+            redoStack = []; updateUndoRedoUI();
         }
 
         function undo() {
             if (undoStack.length === 0) return;
             isHistoryTracking = false;
             redoStack.push(JSON.stringify(canvas.toJSON()));
-            canvas.loadFromJSON(undoStack.pop(), function() {
-                canvas.renderAll(); isHistoryTracking = true; updateUndoRedoUI(); hideFloatingToolbar();
-            });
+            canvas.loadFromJSON(undoStack.pop(), function() { canvas.renderAll(); isHistoryTracking = true; updateUndoRedoUI(); hideFloatingToolbar(); });
         }
 
         function redo() {
             if (redoStack.length === 0) return;
             isHistoryTracking = false;
             undoStack.push(JSON.stringify(canvas.toJSON()));
-            canvas.loadFromJSON(redoStack.pop(), function() {
-                canvas.renderAll(); isHistoryTracking = true; updateUndoRedoUI(); hideFloatingToolbar();
-            });
+            canvas.loadFromJSON(redoStack.pop(), function() { canvas.renderAll(); isHistoryTracking = true; updateUndoRedoUI(); hideFloatingToolbar(); });
         }
 
         setTimeout(() => { isHistoryTracking = true; saveHistory(); }, 100);
-        canvas.on('object:modified', saveHistory);
-        canvas.on('object:added', saveHistory);
-        canvas.on('object:removed', saveHistory);
+        canvas.on('object:modified', saveHistory); canvas.on('object:added', saveHistory); canvas.on('object:removed', saveHistory);
 
-        // --- 3. HERRAMIENTAS DEL LIENZO ---
         function setTool(tool) {
             currentTool = tool;
             document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
@@ -314,45 +308,35 @@
             const drawOptions = document.getElementById('drawing-options');
 
             if (tool === 'draw') {
-                canvas.isDrawingMode = true;
-                drawOptions.classList.remove('opacity-50', 'pointer-events-none');
-                canvas.defaultCursor = 'crosshair';
-                hideFloatingToolbar(); canvas.discardActiveObject(); canvas.requestRenderAll();
+                canvas.isDrawingMode = true; drawOptions.classList.remove('opacity-50', 'pointer-events-none');
+                canvas.defaultCursor = 'crosshair'; hideFloatingToolbar(); canvas.discardActiveObject(); canvas.requestRenderAll();
             } else {
-                canvas.isDrawingMode = false;
-                drawOptions.classList.add('opacity-50', 'pointer-events-none');
+                canvas.isDrawingMode = false; drawOptions.classList.add('opacity-50', 'pointer-events-none');
                 if (tool === 'eraser') {
                     canvas.defaultCursor = 'url(https://cdn-icons-png.flaticon.com/32/1888/1888126.png) 0 32, auto';
                     hideFloatingToolbar(); canvas.discardActiveObject();
                 } else if (tool === 'bucket') {
                     canvas.defaultCursor = 'url(https://cdn-icons-png.flaticon.com/32/3031/3031267.png) 0 32, pointer';
                     hideFloatingToolbar(); canvas.discardActiveObject();
-                } else {
-                    canvas.defaultCursor = 'default';
-                }
+                } else { canvas.defaultCursor = 'default'; }
             }
         }
 
         function updateBrush() {
             const color = document.getElementById('brush-color').value;
             const size = parseInt(document.getElementById('brush-size').value, 10);
-            canvas.freeDrawingBrush.color = color;
-            canvas.freeDrawingBrush.width = size;
+            canvas.freeDrawingBrush.color = color; canvas.freeDrawingBrush.width = size;
             document.getElementById('brush-size-label').innerText = size + 'px';
         }
 
         canvas.on('mouse:down', function(options) {
-            if (currentTool === 'eraser' && options.target) {
-                canvas.remove(options.target); 
-                canvas.discardActiveObject();
-            } else if (currentTool === 'bucket' && !options.target) {
+            if (currentTool === 'eraser' && options.target) { canvas.remove(options.target); canvas.discardActiveObject(); } 
+            else if (currentTool === 'bucket' && !options.target) {
                 const color = document.getElementById('brush-color').value;
-                canvas.setBackgroundColor(color, canvas.renderAll.bind(canvas));
-                saveHistory();
+                canvas.setBackgroundColor(color, canvas.renderAll.bind(canvas)); saveHistory();
             }
         });
 
-        // --- 4. BARRA FLOTANTE ---
         canvas.on('selection:created', updateFloatingToolbarPosition);
         canvas.on('selection:updated', updateFloatingToolbarPosition);
         canvas.on('object:moving', hideFloatingToolbar);
@@ -370,13 +354,8 @@
             const cropBtn = document.getElementById('floating-crop-btn');
             const editBtn = document.getElementById('floating-edit-btn');
             
-            if (activeObject.type === 'image') {
-                cropBtn.style.display = 'flex';
-                editBtn.style.display = 'flex';
-            } else {
-                cropBtn.style.display = 'none';
-                editBtn.style.display = 'none';
-            }
+            if (activeObject.type === 'image') { cropBtn.style.display = 'flex'; editBtn.style.display = 'flex'; } 
+            else { cropBtn.style.display = 'none'; editBtn.style.display = 'none'; }
 
             const bound = activeObject.getBoundingRect();
             const canvasWrapper = document.getElementById('canvas-wrapper');
@@ -385,8 +364,7 @@
             const absoluteLeft = canvasContainer.offsetLeft + bound.left + (bound.width / 2) - (toolbar.offsetWidth / 2) - canvasWrapper.scrollLeft;
             const absoluteTop = canvasContainer.offsetTop + bound.top - 55 - canvasWrapper.scrollTop;
 
-            toolbar.style.left = `${Math.max(10, absoluteLeft)}px`;
-            toolbar.style.top = `${Math.max(10, absoluteTop)}px`;
+            toolbar.style.left = `${Math.max(10, absoluteLeft)}px`; toolbar.style.top = `${Math.max(10, absoluteTop)}px`;
             toolbar.style.display = 'flex';
         }
 
@@ -395,13 +373,12 @@
         function deleteSelected() {
             const activeObjects = canvas.getActiveObjects();
             if (activeObjects.length) {
-                canvas.discardActiveObject();
-                activeObjects.forEach(obj => canvas.remove(obj));
+                canvas.discardActiveObject(); activeObjects.forEach(obj => canvas.remove(obj));
                 hideFloatingToolbar(); saveHistory();
             }
         }
 
-        // --- 5. MODAL: EDITOR DE IMAGEN (Recorte y Borrado) ---
+        // --- MODAL: EDITOR DE IMAGEN ---
         let eraseModal = document.getElementById('erase-modal');
         let eraseCanvas = document.getElementById('erase-canvas');
         let eraseCtx = eraseCanvas.getContext('2d', { willReadFrequently: true });
@@ -414,10 +391,8 @@
         let isEditing = false;
         
         let smartTargetColor = null;
-        let cropStart = {x: 0, y: 0};
-        let cropEnd = {x: 0, y: 0};
-        let totalCropX = 0; 
-        let totalCropY = 0;
+        let cropStart = {x: 0, y: 0}; let cropEnd = {x: 0, y: 0};
+        let totalCropX = 0; let totalCropY = 0;
 
         function setEraseMode(mode) {
             eraseMode = mode;
@@ -426,19 +401,18 @@
                 btn.classList.add('text-gray-400');
             });
             let activeBtn = document.getElementById('tool-' + mode);
-            activeBtn.classList.remove('text-gray-400');
-            if(mode === 'restore') activeBtn.classList.add('bg-emerald-600', 'text-white');
-            else activeBtn.classList.add('bg-blue-500', 'text-white');
+            if(activeBtn) {
+                activeBtn.classList.remove('text-gray-400');
+                if(mode === 'restore') activeBtn.classList.add('bg-emerald-600', 'text-white');
+                else activeBtn.classList.add('bg-blue-500', 'text-white');
+            }
             
             document.getElementById('erase-options-brush').style.display = ['manual', 'smart', 'restore'].includes(mode) ? 'flex' : 'none';
-            document.getElementById('erase-options-tolerance').style.display = ['smart', 'magic'].includes(mode) ? 'flex' : 'none';
-            document.getElementById('contig-wrapper').style.display = (mode === 'magic') ? 'flex' : 'none';
+            document.getElementById('erase-options-tolerance').style.display = ['smart'].includes(mode) ? 'flex' : 'none';
             document.getElementById('erase-options-crop').style.display = (mode === 'crop') ? 'flex' : 'none';
             
             if(mode === 'crop') eraseCanvas.style.cursor = 'crosshair';
-            else if(mode === 'magic') eraseCanvas.style.cursor = 'url(https://cdn-icons-png.flaticon.com/32/287/287661.png) 0 32, pointer';
             else eraseCanvas.style.cursor = 'url(https://cdn-icons-png.flaticon.com/32/1888/1888126.png) 0 32, crosshair';
-
             redrawEraseCanvas();
         }
 
@@ -446,31 +420,57 @@
             const activeObject = canvas.getActiveObject();
             if (!activeObject || activeObject.type !== 'image') return;
             
-            currentEraseObject = activeObject;
-            hideFloatingToolbar();
-            totalCropX = 0; totalCropY = 0;
-            
+            currentEraseObject = activeObject; hideFloatingToolbar(); totalCropX = 0; totalCropY = 0;
             const imgElement = activeObject.getElement();
             const w = imgElement.naturalWidth || imgElement.width;
             const h = imgElement.naturalHeight || imgElement.height;
             
-            eraseCanvas.width = origCanvas.width = w;
-            eraseCanvas.height = origCanvas.height = h;
+            eraseCanvas.width = origCanvas.width = w; eraseCanvas.height = origCanvas.height = h;
+            origCtx.clearRect(0,0,w,h); origCtx.drawImage(imgElement, 0, 0, w, h);
             
-            origCtx.clearRect(0,0,w,h);
-            origCtx.drawImage(imgElement, 0, 0, w, h);
-            
-            resetEraseCanvas();
-            setEraseMode(initialMode);
-            
-            eraseModal.classList.remove('hidden');
-            eraseModal.classList.add('flex');
+            resetEraseCanvas(); setEraseMode(initialMode);
+            eraseModal.classList.remove('hidden'); eraseModal.classList.add('flex');
         }
 
         function resetEraseCanvas() {
             eraseCtx.globalCompositeOperation = 'source-over';
             eraseCtx.clearRect(0, 0, eraseCanvas.width, eraseCanvas.height);
             eraseCtx.drawImage(origCanvas, 0, 0); 
+        }
+
+        // --- LÓGICA DE INTELIGENCIA ARTIFICIAL ---
+        async function applyAI() {
+            if(!currentEraseObject) return;
+            const loader = document.getElementById('ai-loading');
+            loader.style.display = 'flex'; // Mostrar pantalla de carga
+            
+            try {
+                // Obtenemos la imagen actual que Santi esté editando en el modal
+                const dataUrl = eraseCanvas.toDataURL('image/png');
+                
+                // Configurar el modelo de IA desde la nube pública
+                const config = { publicPath: "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.2.1/dist/assets/" };
+                
+                // Ejecutar el recorte automático
+                const blob = await imglyRemoveBackground(dataUrl, config);
+                
+                // Pintar el resultado de la IA sobre el lienzo
+                const url = URL.createObjectURL(blob);
+                const newImg = new Image();
+                newImg.onload = () => {
+                    // Actualizamos tanto la original como la de dibujo para que pueda seguir borrando detalles si quiere
+                    origCtx.clearRect(0, 0, origCanvas.width, origCanvas.height);
+                    origCtx.drawImage(newImg, 0, 0);
+                    resetEraseCanvas(); 
+                    loader.style.display = 'none'; // Ocultar carga
+                };
+                newImg.src = url;
+                
+            } catch (error) {
+                console.error(error);
+                alert("Hubo un error con la Inteligencia Artificial. Asegúrate de tener conexión a internet la primera vez.");
+                loader.style.display = 'none';
+            }
         }
 
         function redrawEraseCanvas() {
@@ -482,19 +482,12 @@
                 eraseCtx.fillStyle = "rgba(0, 0, 0, 0.5)";
                 eraseCtx.fillRect(0, 0, eraseCanvas.width, eraseCanvas.height);
                 
-                let x = Math.min(cropStart.x, cropEnd.x);
-                let y = Math.min(cropStart.y, cropEnd.y);
-                let w = Math.abs(cropStart.x - cropEnd.x);
-                let h = Math.abs(cropStart.y - cropEnd.y);
+                let x = Math.min(cropStart.x, cropEnd.x); let y = Math.min(cropStart.y, cropEnd.y);
+                let w = Math.abs(cropStart.x - cropEnd.x); let h = Math.abs(cropStart.y - cropEnd.y);
                 
-                eraseCtx.clearRect(x, y, w, h); 
-                eraseCtx.drawImage(origCanvas, x, y, w, h, x, y, w, h); 
-                
-                eraseCtx.strokeStyle = "#3b82f6";
-                eraseCtx.lineWidth = 2;
-                eraseCtx.setLineDash([5, 5]);
-                eraseCtx.strokeRect(x, y, w, h);
-                eraseCtx.setLineDash([]);
+                eraseCtx.clearRect(x, y, w, h); eraseCtx.drawImage(origCanvas, x, y, w, h, x, y, w, h); 
+                eraseCtx.strokeStyle = "#3b82f6"; eraseCtx.lineWidth = 2; eraseCtx.setLineDash([5, 5]);
+                eraseCtx.strokeRect(x, y, w, h); eraseCtx.setLineDash([]);
             }
         }
 
@@ -502,46 +495,30 @@
             e.preventDefault();
             const touch = e.touches ? e.touches[0] : e;
             const rect = eraseCanvas.getBoundingClientRect();
-            const scaleX = eraseCanvas.width / rect.width;
-            const scaleY = eraseCanvas.height / rect.height;
-            const x = (touch.clientX - rect.left) * scaleX;
-            const y = (touch.clientY - rect.top) * scaleY;
+            const scaleX = eraseCanvas.width / rect.width, scaleY = eraseCanvas.height / rect.height;
+            const x = (touch.clientX - rect.left) * scaleX, y = (touch.clientY - rect.top) * scaleY;
 
             if (e.type === 'mousedown' || e.type === 'touchstart') {
                 isEditing = true;
-                if (eraseMode === 'magic') {
-                    applyMagicWand(Math.floor(x), Math.floor(y));
-                } else if (eraseMode === 'smart') {
+                if (eraseMode === 'smart') {
                     const pixel = eraseCtx.getImageData(x, y, 1, 1).data;
-                    if(pixel[3] > 0) smartTargetColor = {r: pixel[0], g: pixel[1], b: pixel[2]};
-                    else smartTargetColor = null;
+                    if(pixel[3] > 0) smartTargetColor = {r: pixel[0], g: pixel[1], b: pixel[2]}; else smartTargetColor = null;
                     applySmartBrush(x, y);
-                } else if (eraseMode === 'crop') {
-                    cropStart = {x, y}; cropEnd = {x, y};
-                } else {
-                    applyBrush(x, y, eraseMode);
-                }
+                } else if (eraseMode === 'crop') { cropStart = {x, y}; cropEnd = {x, y}; } 
+                else { applyBrush(x, y, eraseMode); }
             } else if ((e.type === 'mousemove' || e.type === 'touchmove') && isEditing) {
-                if (eraseMode === 'manual' || eraseMode === 'restore') {
-                    applyBrush(x, y, eraseMode);
-                } else if (eraseMode === 'smart') {
-                    applySmartBrush(x, y);
-                } else if (eraseMode === 'crop') {
-                    cropEnd = {x, y};
-                    redrawEraseCanvas();
-                }
+                if (eraseMode === 'manual' || eraseMode === 'restore') applyBrush(x, y, eraseMode);
+                else if (eraseMode === 'smart') applySmartBrush(x, y);
+                else if (eraseMode === 'crop') { cropEnd = {x, y}; redrawEraseCanvas(); }
             } else if (e.type === 'mouseup' || e.type === 'touchend') {
                 if(isEditing && eraseMode === 'crop') executeCrop();
                 isEditing = false;
             }
         }
 
-        eraseCanvas.addEventListener('mousedown', handleEraseInteraction);
-        eraseCanvas.addEventListener('mousemove', handleEraseInteraction);
-        eraseCanvas.addEventListener('mouseup', handleEraseInteraction);
-        eraseCanvas.addEventListener('mouseout', () => { isEditing = false; });
-        eraseCanvas.addEventListener('touchstart', handleEraseInteraction, {passive: false});
-        eraseCanvas.addEventListener('touchmove', handleEraseInteraction, {passive: false});
+        eraseCanvas.addEventListener('mousedown', handleEraseInteraction); eraseCanvas.addEventListener('mousemove', handleEraseInteraction);
+        eraseCanvas.addEventListener('mouseup', handleEraseInteraction); eraseCanvas.addEventListener('mouseout', () => { isEditing = false; });
+        eraseCanvas.addEventListener('touchstart', handleEraseInteraction, {passive: false}); eraseCanvas.addEventListener('touchmove', handleEraseInteraction, {passive: false});
         eraseCanvas.addEventListener('touchend', handleEraseInteraction);
 
         function applyBrush(x, y, mode) {
@@ -550,11 +527,9 @@
                 eraseCtx.globalCompositeOperation = 'destination-out';
                 eraseCtx.beginPath(); eraseCtx.arc(x, y, size, 0, Math.PI * 2); eraseCtx.fill();
             } else if (mode === 'restore') {
-                eraseCtx.globalCompositeOperation = 'source-over';
-                eraseCtx.save();
+                eraseCtx.globalCompositeOperation = 'source-over'; eraseCtx.save();
                 eraseCtx.beginPath(); eraseCtx.arc(x, y, size, 0, Math.PI * 2); eraseCtx.clip();
-                eraseCtx.drawImage(origCanvas, 0, 0);
-                eraseCtx.restore();
+                eraseCtx.drawImage(origCanvas, 0, 0); eraseCtx.restore();
             }
         }
 
@@ -563,30 +538,18 @@
             const r = parseInt(document.getElementById('erase-brush-size').value, 10);
             const tol = parseInt(document.getElementById('erase-tolerance').value, 10);
             
-            const boxX = Math.floor(Math.max(0, x - r));
-            const boxY = Math.floor(Math.max(0, y - r));
-            const boxW = Math.min(eraseCanvas.width - boxX, r * 2);
-            const boxH = Math.min(eraseCanvas.height - boxY, r * 2);
+            const boxX = Math.floor(Math.max(0, x - r)), boxY = Math.floor(Math.max(0, y - r));
+            const boxW = Math.min(eraseCanvas.width - boxX, r * 2), boxH = Math.min(eraseCanvas.height - boxY, r * 2);
             if(boxW <= 0 || boxH <= 0) return;
             
-            const imgData = eraseCtx.getImageData(boxX, boxY, boxW, boxH);
-            const data = imgData.data;
-            
+            const imgData = eraseCtx.getImageData(boxX, boxY, boxW, boxH); const data = imgData.data;
             for (let j = 0; j < boxH; j++) {
                 for (let i = 0; i < boxW; i++) {
-                    const cx = boxX + i, cy = boxY + j;
-                    const dx = cx - x, dy = cy - y;
-                    
+                    const cx = boxX + i, cy = boxY + j; const dx = cx - x, dy = cy - y;
                     if (dx*dx + dy*dy <= r*r) {
                         const idx = (j * boxW + i) * 4;
                         if (data[idx+3] === 0) continue;
-                        
-                        const dist = Math.sqrt(
-                            Math.pow(data[idx] - smartTargetColor.r, 2) +
-                            Math.pow(data[idx+1] - smartTargetColor.g, 2) +
-                            Math.pow(data[idx+2] - smartTargetColor.b, 2)
-                        );
-                        
+                        const dist = Math.sqrt(Math.pow(data[idx]-smartTargetColor.r, 2) + Math.pow(data[idx+1]-smartTargetColor.g, 2) + Math.pow(data[idx+2]-smartTargetColor.b, 2));
                         if (dist <= tol) data[idx+3] = 0; 
                     }
                 }
@@ -594,228 +557,113 @@
             eraseCtx.putImageData(imgData, boxX, boxY);
         }
 
-        function applyMagicWand(startX, startY) {
-            const tol = parseInt(document.getElementById('erase-tolerance').value, 10);
-            const isContiguous = document.getElementById('erase-contiguous').checked;
-            const imgData = eraseCtx.getImageData(0, 0, eraseCanvas.width, eraseCanvas.height);
-            const data = imgData.data;
-            const w = imgData.width, h = imgData.height;
-
-            const startIdx = (startY * w + startX) * 4;
-            const sr = data[startIdx], sg = data[startIdx+1], sb = data[startIdx+2], sa = data[startIdx+3];
-            if (sa === 0) return; 
-            
-            const matchesColor = (r, g, b) => {
-                return Math.sqrt(Math.pow(r-sr,2) + Math.pow(g-sg,2) + Math.pow(b-sb,2)) <= tol;
-            };
-
-            if (!isContiguous) {
-                for (let i = 0; i < data.length; i += 4) {
-                    if (data[i+3] > 0 && matchesColor(data[i], data[i+1], data[i+2])) data[i+3] = 0;
-                }
-            } else {
-                const stack = [[startX, startY]];
-                const visited = new Uint8Array(w * h);
-                visited[startY * w + startX] = 1;
-
-                while(stack.length > 0) {
-                    const [x, y] = stack.pop();
-                    const idx = (y * w + x) * 4;
-                    if (matchesColor(data[idx], data[idx+1], data[idx+2])) {
-                        data[idx+3] = 0; 
-                        for(let dy = -1; dy <= 1; dy++) {
-                            for(let dx = -1; dx <= 1; dx++) {
-                                if(dx === 0 && dy === 0) continue;
-                                const nx = x + dx, ny = y + dy;
-                                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                    const vIdx = ny * w + nx;
-                                    if (visited[vIdx] === 0) { stack.push([nx, ny]); visited[vIdx] = 1; }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            eraseCtx.putImageData(imgData, 0, 0);
-        }
-
         function executeCrop() {
-            let cx = Math.min(cropStart.x, cropEnd.x);
-            let cy = Math.min(cropStart.y, cropEnd.y);
-            let cw = Math.abs(cropStart.x - cropEnd.x);
-            let ch = Math.abs(cropStart.y - cropEnd.y);
+            let cx = Math.min(cropStart.x, cropEnd.x), cy = Math.min(cropStart.y, cropEnd.y);
+            let cw = Math.abs(cropStart.x - cropEnd.x), ch = Math.abs(cropStart.y - cropEnd.y);
             
             if (cw < 10 || ch < 10) { redrawEraseCanvas(); return; } 
             
-            let tempCanvas = document.createElement('canvas');
-            tempCanvas.width = cw; tempCanvas.height = ch;
+            let tempCanvas = document.createElement('canvas'); tempCanvas.width = cw; tempCanvas.height = ch;
             tempCanvas.getContext('2d').drawImage(origCanvas, cx, cy, cw, ch, 0, 0, cw, ch);
             
-            eraseCanvas.width = origCanvas.width = cw;
-            eraseCanvas.height = origCanvas.height = ch;
+            eraseCanvas.width = origCanvas.width = cw; eraseCanvas.height = origCanvas.height = ch;
+            origCtx.clearRect(0,0,cw,ch); origCtx.drawImage(tempCanvas, 0, 0);
+            eraseCtx.clearRect(0,0,cw,ch); eraseCtx.drawImage(tempCanvas, 0, 0);
             
-            origCtx.clearRect(0,0,cw,ch);
-            origCtx.drawImage(tempCanvas, 0, 0);
-            
-            eraseCtx.clearRect(0,0,cw,ch);
-            eraseCtx.drawImage(tempCanvas, 0, 0);
-            
-            totalCropX += cx;
-            totalCropY += cy;
+            totalCropX += cx; totalCropY += cy;
         }
 
-        function closeEraseModal() {
-            eraseModal.classList.add('hidden');
-            eraseModal.classList.remove('flex');
-            currentEraseObject = null;
-        }
+        function closeEraseModal() { eraseModal.classList.add('hidden'); eraseModal.classList.remove('flex'); currentEraseObject = null; }
 
         function applyImageEdit() {
             const dataURL = eraseCanvas.toDataURL('image/png');
-            
             fabric.Image.fromURL(dataURL, function(img) {
                 const rad = fabric.util.degreesToRadians(currentEraseObject.angle);
-                const deltaX = totalCropX * currentEraseObject.scaleX;
-                const deltaY = totalCropY * currentEraseObject.scaleY;
-                
-                const finalX = deltaX * Math.cos(rad) - deltaY * Math.sin(rad);
-                const finalY = deltaX * Math.sin(rad) + deltaY * Math.cos(rad);
+                const deltaX = totalCropX * currentEraseObject.scaleX, deltaY = totalCropY * currentEraseObject.scaleY;
+                const finalX = deltaX * Math.cos(rad) - deltaY * Math.sin(rad), finalY = deltaX * Math.sin(rad) + deltaY * Math.cos(rad);
 
                 img.set({
-                    left: currentEraseObject.left + finalX,
-                    top: currentEraseObject.top + finalY,
-                    scaleX: currentEraseObject.scaleX,
-                    scaleY: currentEraseObject.scaleY,
-                    angle: currentEraseObject.angle,
-                    originX: currentEraseObject.originX,
-                    originY: currentEraseObject.originY,
+                    left: currentEraseObject.left + finalX, top: currentEraseObject.top + finalY,
+                    scaleX: currentEraseObject.scaleX, scaleY: currentEraseObject.scaleY, angle: currentEraseObject.angle,
+                    originX: currentEraseObject.originX, originY: currentEraseObject.originY,
                     transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40
                 });
                 
-                isHistoryTracking = false;
-                canvas.remove(currentEraseObject);
-                canvas.add(img);
-                canvas.setActiveObject(img);
-                canvas.requestRenderAll();
-                isHistoryTracking = true;
-                saveHistory(); 
-                
-                closeEraseModal();
+                isHistoryTracking = false; canvas.remove(currentEraseObject); canvas.add(img);
+                canvas.setActiveObject(img); canvas.requestRenderAll(); isHistoryTracking = true; saveHistory(); closeEraseModal();
             });
         }
 
-        // --- 6. SUBIDA DE IMÁGENES & PORTAPAPELES ---
+        // --- SUBIDA DE IMÁGENES & PORTAPAPELES ---
         function addSticker(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(f) {
                 fabric.Image.fromURL(f.target.result, function(img) {
                     if (img.width > 400) img.scaleToWidth(400);
-                    img.set({
-                        left: canvas.width / 2 - (img.getScaledWidth() / 2),
-                        top: canvas.height / 2 - (img.getScaledHeight() / 2),
-                        transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40
-                    });
-                    canvas.add(img);
-                    setTool('select'); canvas.setActiveObject(img); saveHistory();
+                    img.set({ left: canvas.width/2 - img.getScaledWidth()/2, top: canvas.height/2 - img.getScaledHeight()/2, transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40 });
+                    canvas.add(img); setTool('select'); canvas.setActiveObject(img); saveHistory();
                 });
-            };
-            reader.readAsDataURL(file); event.target.value = ''; 
+            }; reader.readAsDataURL(file); event.target.value = ''; 
         }
 
         function setBackground(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(f) {
                 fabric.Image.fromURL(f.target.result, function(img) {
-                    const canvasAspect = canvas.width / canvas.height;
-                    const imgAspect = img.width / img.height;
-                    let scaleFactor = (canvasAspect >= imgAspect) ? (canvas.width / img.width) : (canvas.height / img.height);
-                    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { scaleX: scaleFactor, scaleY: scaleFactor, originX: 'center', originY: 'center', left: canvas.width / 2, top: canvas.height / 2 });
+                    const scaleFactor = (canvas.width/canvas.height >= img.width/img.height) ? (canvas.width/img.width) : (canvas.height/img.height);
+                    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { scaleX: scaleFactor, scaleY: scaleFactor, originX: 'center', originY: 'center', left: canvas.width/2, top: canvas.height/2 });
                     saveHistory();
                 });
-            };
-            reader.readAsDataURL(file); event.target.value = '';
+            }; reader.readAsDataURL(file); event.target.value = '';
         }
 
-        // Evento para escuchar Ctrl+V de imágenes externas
         document.addEventListener('paste', function(e) {
             if (e.target.tagName === 'INPUT') return;
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for (let index in items) {
-                const item = items[index];
-                if (item.kind === 'file') {
-                    const blob = item.getAsFile();
+                if (items[index].kind === 'file') {
                     const reader = new FileReader();
                     reader.onload = function(event) {
-                        const imgObj = new Image();
-                        imgObj.src = event.target.result;
+                        const imgObj = new Image(); imgObj.src = event.target.result;
                         imgObj.onload = function() {
-                            const img = new fabric.Image(imgObj);
-                            if(img.width > 500) img.scaleToWidth(500); 
-                            img.set({
-                                left: canvas.width / 2 - (img.getScaledWidth() / 2), top: canvas.height / 2 - (img.getScaledHeight() / 2),
-                                transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40
-                            });
-                            canvas.add(img);
-                            setTool('select');
-                            canvas.setActiveObject(img);
-                            saveHistory();
+                            const img = new fabric.Image(imgObj); if(img.width > 500) img.scaleToWidth(500); 
+                            img.set({ left: canvas.width/2 - img.getScaledWidth()/2, top: canvas.height/2 - img.getScaledHeight()/2, transparentCorners: false, cornerColor: '#3b82f6', cornerStrokeColor: '#ffffff', borderColor: '#3b82f6', cornerSize: 16, rotatingPointOffset: 40 });
+                            canvas.add(img); setTool('select'); canvas.setActiveObject(img); saveHistory();
                         }
-                    };
-                    reader.readAsDataURL(blob);
+                    }; reader.readAsDataURL(items[index].getAsFile());
                 }
             }
         });
 
-        // --- 7. SISTEMAS FINALES ---
+        // --- SISTEMAS FINALES ---
         document.addEventListener('keydown', function(e) {
             if (e.target.tagName === 'INPUT' || !document.getElementById('erase-modal').classList.contains('hidden')) return;
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
             if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
             
-            // Pegado interno (Objetos de Fabric copiados con Ctrl+C)
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-                const activeObject = canvas.getActiveObject();
-                if (activeObject) { activeObject.clone(function(cloned) { clipboard = cloned; }); }
+                const activeObject = canvas.getActiveObject(); if (activeObject) activeObject.clone(function(cloned) { clipboard = cloned; });
             }
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-                if (clipboard) {
-                    clipboard.clone(function(clonedObj) {
-                        canvas.discardActiveObject();
-                        clonedObj.set({ left: clonedObj.left + 20, top: clonedObj.top + 20, evented: true });
-                        if (clonedObj.type === 'activeSelection') {
-                            clonedObj.canvas = canvas;
-                            clonedObj.forEachObject(function(obj) { canvas.add(obj); });
-                            clonedObj.setCoords();
-                        } else {
-                            canvas.add(clonedObj);
-                        }
-                        clipboard.top += 20; clipboard.left += 20;
-                        setTool('select'); canvas.setActiveObject(clonedObj); canvas.requestRenderAll(); saveHistory();
-                    });
-                }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && clipboard) {
+                clipboard.clone(function(clonedObj) {
+                    canvas.discardActiveObject(); clonedObj.set({ left: clonedObj.left + 20, top: clonedObj.top + 20, evented: true });
+                    if (clonedObj.type === 'activeSelection') { clonedObj.canvas = canvas; clonedObj.forEachObject(obj => canvas.add(obj)); clonedObj.setCoords(); } else canvas.add(clonedObj);
+                    clipboard.top += 20; clipboard.left += 20; setTool('select'); canvas.setActiveObject(clonedObj); canvas.requestRenderAll(); saveHistory();
+                });
             }
-
-            if (e.key.toLowerCase() === 'v') setTool('select');
-            if (e.key.toLowerCase() === 'p') setTool('draw');
-            if (e.key.toLowerCase() === 'b') setTool('bucket');
+            if (e.key.toLowerCase() === 'v') setTool('select'); if (e.key.toLowerCase() === 'p') setTool('draw'); if (e.key.toLowerCase() === 'b') setTool('bucket');
         });
 
         function resizeCanvas() {
-            const w = parseInt(document.getElementById('canvas-width').value, 10);
-            const h = parseInt(document.getElementById('canvas-height').value, 10);
+            const w = parseInt(document.getElementById('canvas-width').value, 10), h = parseInt(document.getElementById('canvas-height').value, 10);
             if (w > 0 && h > 0) {
-                isHistoryTracking = false;
-                canvas.setWidth(w); canvas.setHeight(h);
+                isHistoryTracking = false; canvas.setWidth(w); canvas.setHeight(h);
                 if (canvas.backgroundImage) {
-                    const img = canvas.backgroundImage;
-                    const canvasAspect = w / h, imgAspect = img.width / img.height;
-                    let scaleFactor = (canvasAspect >= imgAspect) ? w / img.width : h / img.height;
-                    img.set({ scaleX: scaleFactor, scaleY: scaleFactor, left: w / 2, top: h / 2 });
+                    const img = canvas.backgroundImage; const scaleFactor = (w/h >= img.width/img.height) ? w/img.width : h/img.height;
+                    img.set({ scaleX: scaleFactor, scaleY: scaleFactor, left: w/2, top: h/2 });
                 }
                 canvas.renderAll(); hideFloatingToolbar(); isHistoryTracking = true; saveHistory();
             }
@@ -823,38 +671,27 @@
 
         function clearCanvas() {
             if(confirm('¿Estás seguro de que quieres borrar toda la pizarra?')) {
-                canvas.clear(); canvas.setBackgroundColor('#ffffff', canvas.renderAll.bind(canvas));
-                hideFloatingToolbar(); saveHistory();
+                canvas.clear(); canvas.setBackgroundColor('#ffffff', canvas.renderAll.bind(canvas)); hideFloatingToolbar(); saveHistory();
             }
         }
 
         function exportImage() {
             canvas.discardActiveObject(); canvas.renderAll(); hideFloatingToolbar();
-            const link = document.createElement('a');
-            link.download = 'Mi-Pizarra.png';
-            link.href = canvas.toDataURL({ format: 'png', quality: 1.0 });
+            const link = document.createElement('a'); link.download = 'Mi-Pizarra.png'; link.href = canvas.toDataURL({ format: 'png', quality: 1.0 });
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         function saveProject() {
-            const blob = new Blob([JSON.stringify(canvas.toJSON())], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.download = 'Proyecto-Pizarra.json'; link.href = url;
+            const link = document.createElement('a'); link.download = 'Proyecto-Pizarra.json'; link.href = URL.createObjectURL(new Blob([JSON.stringify(canvas.toJSON())], { type: "application/json" }));
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         function loadProject(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(f) {
-                isHistoryTracking = false;
-                canvas.loadFromJSON(f.target.result, function() {
-                    canvas.renderAll(); isHistoryTracking = true; undoStack = []; redoStack = []; saveHistory();
-                });
-            };
-            reader.readAsText(file); event.target.value = ''; 
+                isHistoryTracking = false; canvas.loadFromJSON(f.target.result, function() { canvas.renderAll(); isHistoryTracking = true; undoStack = []; redoStack = []; saveHistory(); });
+            }; reader.readAsText(file); event.target.value = ''; 
         }
         updateUndoRedoUI();
     </script>
