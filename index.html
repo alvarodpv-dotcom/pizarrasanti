@@ -475,14 +475,24 @@
             loader.style.display = 'flex'; 
             
             try {
-                // IMPORTACIÓN DINÁMICA DE LA IA
-                const imglyModule = await import('https://unpkg.com/@imgly/background-removal@1.4.3/dist/browser/bundle.mjs');
-                const removeBackground = imglyModule.default;
+                // Inyector de script seguro y dinámico
+                if (typeof window.imglyRemoveBackground !== 'function') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.3/dist/browser/bundle.umd.min.js";
+                        script.onload = resolve;
+                        script.onerror = () => reject(new Error("Un bloqueador de anuncios (AdBlock) o antivirus impidió descargar la IA."));
+                        document.head.appendChild(script);
+                    });
+                }
 
                 const dataUrl = eraseCanvas.toDataURL('image/png');
-                const config = { publicPath: "https://unpkg.com/@imgly/background-removal@1.4.3/dist/assets/" };
+                const config = { 
+                    publicPath: "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.3/dist/assets/",
+                    debug: false
+                };
                 
-                const blob = await removeBackground(dataUrl, config);
+                const blob = await window.imglyRemoveBackground(dataUrl, config);
                 
                 const url = URL.createObjectURL(blob);
                 const newImg = new Image();
@@ -496,7 +506,7 @@
                 
             } catch (error) {
                 console.error(error);
-                alert("Hubo un error de conexión al cargar la IA. Revisa tu internet.");
+                alert("Error: " + (error.message || "Asegúrate de tener conexión a internet estable."));
                 loader.style.display = 'none';
             }
         }
